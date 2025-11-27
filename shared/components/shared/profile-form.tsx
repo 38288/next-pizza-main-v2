@@ -1,3 +1,4 @@
+//shared/components/shared/profile-form.tsx
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,72 +13,116 @@ import { Title } from './title';
 import { FormInput } from './form';
 import { Button } from '../ui';
 import { updateUserInfo } from '@/app/actions';
+import { cn } from '@/shared/lib/utils';
 
 interface Props {
-  data: User;
+    data: User;
+    className?: string;
 }
 
-export const ProfileForm: React.FC<Props> = ({ data }) => {
-  const form = useForm({
-    resolver: zodResolver(formRegisterSchema),
-    defaultValues: {
-      fullName: data.fullName,
-      email: data.email,
-      password: '',
-      confirmPassword: '',
-    },
-  });
-
-  const onSubmit = async (data: TFormRegisterValues) => {
-    try {
-      await updateUserInfo({
-        email: data.email,
-        fullName: data.fullName,
-        password: data.password,
-      });
-
-      toast.error('Данные обновлены 📝', {
-        icon: '✅',
-      });
-    } catch (error) {
-      return toast.error('Ошибка при обновлении данных', {
-        icon: '❌',
-      });
-    }
-  };
-
-  const onClickSignOut = () => {
-    signOut({
-      callbackUrl: '/',
+export const ProfileForm: React.FC<Props> = ({ data, className }) => {
+    const form = useForm({
+        resolver: zodResolver(formRegisterSchema),
+        defaultValues: {
+            fullName: data.fullName,
+            email: data.email,
+            password: '',
+            confirmPassword: '',
+        },
     });
-  };
 
-  return (
-    <Container className="my-10">
-      <Title text={`Личные данные | #${data.id}`} size="md" className="font-bold" />
+    const onSubmit = async (formData: TFormRegisterValues) => {
+        try {
+            await updateUserInfo({
+                email: formData.email,
+                fullName: formData.fullName,
+                password: formData.password,
+            });
 
-      <FormProvider {...form}>
-        <form className="flex flex-col gap-5 w-96 mt-10" onSubmit={form.handleSubmit(onSubmit)}>
-          <FormInput name="email" label="E-Mail" required />
-          <FormInput name="fullName" label="Полное имя" required />
+            toast.success('Данные обновлены 📝', {
+                duration: 3000,
+                position: 'bottom-center', // Лучшая позиция для мобильных
+            });
 
-          <FormInput type="password" name="password" label="Новый пароль" required />
-          <FormInput type="password" name="confirmPassword" label="Повторите пароль" required />
+            // Сбрасываем поля паролей после успешного обновления
+            form.reset({
+                ...form.getValues(),
+                password: '',
+                confirmPassword: '',
+            });
+        } catch (error) {
+            toast.error('Ошибка при обновлении данных', {
+                duration: 4000,
+                position: 'bottom-center',
+            });
+        }
+    };
 
-          <Button disabled={form.formState.isSubmitting} className="text-base mt-10" type="submit">
-            Сохранить
-          </Button>
+    const onClickSignOut = () => {
+        signOut({
+            callbackUrl: '/',
+        });
+    };
 
-          <Button
-            onClick={onClickSignOut}
-            variant="secondary"
-            disabled={form.formState.isSubmitting}
-            className="text-base"
-            type="button">
-            Выйти
-          </Button>
-        </form>
-      </FormProvider>
-    </Container>
-  );
+    return (
+        <Container className={cn('my-6 sm:my-8 lg:my-10', className)}>
+            <Title
+                text={`Личные данные | #${data.id}`}
+                size="md"
+                className="font-bold text-center sm:text-left"
+            />
+
+            <FormProvider {...form}>
+                <form
+                    className="flex flex-col gap-4 sm:gap-5 w-full max-w-md sm:max-w-96 mt-6 sm:mt-8 lg:mt-10 mx-auto sm:mx-0"
+                    onSubmit={form.handleSubmit(onSubmit)}
+                >
+                    <FormInput name="email" label="E-Mail" required />
+                    <FormInput name="fullName" label="Полное имя" required />
+
+                    <div className="mt-2 sm:mt-4">
+                        <h3 className="text-lg font-semibold mb-3 sm:mb-4 text-gray-700">Смена пароля</h3>
+                        <div className="flex flex-col gap-4 sm:gap-5">
+                            <FormInput
+                                type="password"
+                                name="password"
+                                label="Новый пароль"
+                                placeholder="Введите новый пароль"
+                            />
+                            <FormInput
+                                type="password"
+                                name="confirmPassword"
+                                label="Повторите пароль"
+                                placeholder="Повторите новый пароль"
+                            />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            Оставьте поля пустыми, если не хотите менять пароль
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8 lg:mt-10">
+                        <Button
+                            disabled={form.formState.isSubmitting}
+                            className="text-sm sm:text-base h-11 sm:h-12 flex-1"
+                            type="submit"
+                            loading={form.formState.isSubmitting}
+                        >
+                            Сохранить изменения
+                        </Button>
+
+                        <Button
+                            onClick={onClickSignOut}
+                            variant="outline"
+                            disabled={form.formState.isSubmitting}
+                            className="text-sm sm:text-base h-11 sm:h-12 flex-1"
+                            type="button"
+                        >
+                            Выйти
+                        </Button>
+                    </div>
+                </form>
+            </FormProvider>
+        </Container>
+    );
 };

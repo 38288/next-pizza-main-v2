@@ -1,3 +1,4 @@
+//shared/components/shared/top-bar.tsx
 import { cn } from '@/shared/lib/utils';
 import React from 'react';
 import { Container } from './container';
@@ -5,17 +6,28 @@ import { Categories } from './categories';
 import { Category } from '@prisma/client';
 
 interface Props {
-  categories: Category[];
-  className?: string;
+    categories: Category[];
+    className?: string;
 }
 
 export const TopBar: React.FC<Props> = ({ categories, className }) => {
-  return (
-    <div className={cn('sticky top-0 bg-white py-5 shadow-lg shadow-black/5 z-10', className)}>
-      <Container className="flex items-center justify-between ">
-        <Categories items={categories} />
-        {/*<SortPopup />*/}
-      </Container>
-    </div>
-  );
+    return (
+        <div className={cn('sticky top-0 bg-white py-4 shadow-lg shadow-black/5 z-10', className)}>
+            {/* Десктопная версия */}
+            <div className="hidden lg:block">
+                <Container className="flex items-center justify-between">
+                    <Categories items={categories} />
+                </Container>
+            </div>
+
+            {/* Мобильная версия с горизонтальным скроллом */}
+            <div className="lg:hidden">
+                <div className="overflow-x-auto scrollbar-hide w-full">
+                    <div className="flex items-center gap-4 px-4 min-w-max">
+                        <Categories items={categories} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 };

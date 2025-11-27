@@ -1,3 +1,4 @@
+//shared/components/shared/cart-item-details/index.ts
 export { CartItemInfo as Info } from './cart-item-info';
 export { CartItemDetailsImage as Image } from './cart-item-details-image';
 export { CartItemDetailsPrice as Price } from './cart-item-details-price';

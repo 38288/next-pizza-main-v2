@@ -1,3 +1,4 @@
+//app/(checkout)/layout.tsx
 import { Container, Header } from '@/shared/components/shared';
 import { Metadata } from 'next';
 import { Suspense } from 'react';

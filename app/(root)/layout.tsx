@@ -1,3 +1,4 @@
+//app/(root)/layout.tsx
 import { Header } from '@/shared/components/shared';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';

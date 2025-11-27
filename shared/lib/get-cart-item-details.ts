@@ -10,7 +10,7 @@ export const getCartItemDetails = (
 
   if (pizzaSize && pizzaType) {
     const typeName = mapPizzaType[pizzaType];
-    details.push(`${typeName} ${pizzaSize} см`);
+    details.push(`${typeName} Дополнительно: `);
   }
 
   if (ingredients) {

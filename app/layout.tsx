@@ -1,3 +1,4 @@
+//app/layout.tsx
 import { Nunito } from 'next/font/google';
 
 import './globals.css';
