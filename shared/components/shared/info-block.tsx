@@ -1,4 +1,4 @@
-//shared/components/shared/info-block.tsx
+// shared/components/shared/info-block.tsx
 import React from 'react';
 import { Button } from '../ui/button';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
@@ -15,48 +15,41 @@ interface Props {
 
 export const InfoBlock: React.FC<Props> = ({ className, title, text, imageUrl }) => {
     return (
-        <div className={cn(
-            className,
-            'flex flex-col lg:flex-row items-center justify-center lg:justify-between w-full max-w-[840px] gap-8 lg:gap-12 p-4 sm:p-6' // Адаптивная компоновка и отступы
-        )}>
+        <div className={cn(className, 'flex flex-col lg:flex-row items-center justify-center w-full max-w-2xl lg:max-w-[840px] p-4 sm:p-6 lg:p-8 gap-8 lg:gap-12')}>
+
             {/* Текстовая часть */}
-            <div className="flex flex-col items-center lg:items-start text-center lg:text-left order-2 lg:order-1">
-                <div className="w-full lg:w-[445px]">
-                    <Title size="lg" text={title} className="font-extrabold mb-3 lg:mb-4" />
+            <div className="flex flex-col items-center text-center w-full">
+                <div className="w-full max-w-lg lg:max-w-xl">
+                    <Title size="lg" text={title} className="font-extrabold mb-3 lg:mb-4 text-2xl lg:text-3xl" />
                     <p className="text-gray-400 text-base lg:text-lg leading-relaxed">{text}</p>
                 </div>
 
                 {/* Кнопки */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 lg:mt-11 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-6 lg:mt-8 max-w-sm">
                     <Link href="/" className="w-full sm:w-auto">
-                        <Button
-                            variant="outline"
-                            className="gap-2 w-full sm:w-auto h-11 sm:h-10 text-sm sm:text-base"
-                            size="sm"
-                        >
-                            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <Button variant="outline" className="gap-2 w-full sm:w-auto h-11">
+                            <ArrowLeft className="w-4 h-4" />
                             На главную
                         </Button>
                     </Link>
-                    <Button
-                        variant="outline"
-                        className="text-gray-500 border-gray-400 hover:bg-gray-50 w-full sm:w-auto h-11 sm:h-10 text-sm sm:text-base"
-                        size="sm"
-                        onClick={() => window.location.reload()}
-                    >
-                        <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                        Обновить
-                    </Button>
+
+                    {/* Убираем onClick и используем Link или делаем клиентским компонентом */}
+                    <Link href="/" replace className="w-full sm:w-auto">
+                        <Button variant="outline" className="text-gray-500 border-gray-400 hover:bg-gray-50 w-full sm:w-auto h-11 gap-2">
+                            <RefreshCw className="w-4 h-4" />
+                            Обновить
+                        </Button>
+                    </Link>
                 </div>
             </div>
 
             {/* Изображение */}
             {imageUrl && (
-                <div className="order-1 lg:order-2 flex-shrink-0">
+                <div className="flex-shrink-0">
                     <img
                         src={imageUrl}
                         alt={title}
-                        className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] lg:w-[300px] lg:h-[300px] object-contain" // Адаптивные размеры
+                        className="w-40 h-40 sm:w-48 sm:h-48 lg:w-60 lg:h-60 object-contain"
                     />
                 </div>
             )}

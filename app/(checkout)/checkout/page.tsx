@@ -1,4 +1,4 @@
-//app/(checkout)/checkout/page.tsx
+// app/(checkout)/checkout/page.tsx
 'use client';
 
 import { FormProvider, useForm } from 'react-hook-form';
@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import React from 'react';
 import { useSession } from 'next-auth/react';
 import { Api } from '@/shared/services/api-client';
+import { cn } from '@/shared/lib/utils';
 
 export default function CheckoutPage() {
     const [submitting, setSubmitting] = React.useState(false);
@@ -37,20 +38,25 @@ export default function CheckoutPage() {
         },
     });
 
-    React.useEffect(() => {
-        async function fetchUserInfo() {
+    // Используем useCallback для стабильной функции
+    const fetchUserInfo = React.useCallback(async () => {
+        try {
             const data = await Api.auth.getMe();
             const [firstName, lastName] = data.fullName.split(' ');
 
-            form.setValue('firstName', firstName);
-            form.setValue('lastName', lastName);
-            form.setValue('email', data.email);
+            form.setValue('firstName', firstName || '');
+            form.setValue('lastName', lastName || '');
+            form.setValue('email', data.email || '');
+        } catch (error) {
+            console.error('Ошибка загрузки данных пользователя:', error);
         }
+    }, [form]); // Добавляем form в зависимости
 
+    React.useEffect(() => {
         if (session) {
             fetchUserInfo();
         }
-    }, [session]);
+    }, [session, fetchUserInfo]); // Добавляем fetchUserInfo в зависимости
 
     const onSubmit = async (data: CheckoutFormValues) => {
         try {
@@ -58,18 +64,20 @@ export default function CheckoutPage() {
 
             const url = await createOrder(data);
 
-            toast.success('Заказ успешно оформлен! 📝 Переход на оплату... ', {
+            toast.success('Заказ успешно оформлен! Переход на оплату...', {
                 duration: 3000,
-                position: 'bottom-center', // Лучшая позиция для мобильных
+                position: 'bottom-center',
             });
 
             if (url) {
-                location.href = url;
+                setTimeout(() => {
+                    location.href = url;
+                }, 1500);
             }
         } catch (err) {
-            console.log(err);
+            console.error('Ошибка оформления заказа:', err);
             setSubmitting(false);
-            toast.error('Не удалось создать заказ', {
+            toast.error('Не удалось создать заказ. Попробуйте еще раз.', {
                 duration: 4000,
                 position: 'bottom-center',
             });
@@ -81,18 +89,20 @@ export default function CheckoutPage() {
         updateItemQuantity(id, newQuantity);
     };
 
+    const isFormDisabled = loading || submitting;
+
     return (
-        <Container className="mt-6 sm:mt-8 lg:mt-10">
+        <Container className="mt-4 sm:mt-6 lg:mt-8 pb-20 sm:pb-24">
             <Title
                 text="Оформление заказа"
-                className="font-extrabold mb-6 sm:mb-8 text-2xl sm:text-3xl lg:text-[36px] text-center sm:text-left"
+                className="font-extrabold mb-4 sm:mb-6 lg:mb-8 text-xl sm:text-2xl lg:text-3xl text-center lg:text-left"
             />
 
             <FormProvider {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-10">
+                    <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 lg:gap-8">
                         {/* Левая часть - формы */}
-                        <div className="flex flex-col gap-6 sm:gap-8 lg:gap-10 flex-1 mb-16 sm:mb-20 lg:mb-20">
+                        <div className="flex flex-col gap-4 sm:gap-6 lg:gap-8 flex-1">
                             <CheckoutCart
                                 onClickCountButton={onClickCountButton}
                                 removeCartItem={removeCartItem}
@@ -100,16 +110,27 @@ export default function CheckoutPage() {
                                 loading={loading}
                             />
 
-                            <CheckoutPersonalForm className={loading ? 'opacity-40 pointer-events-none' : ''} />
+                            <CheckoutPersonalForm
+                                className={cn(
+                                    'transition-opacity duration-200',
+                                    isFormDisabled && 'opacity-50 pointer-events-none'
+                                )}
+                            />
 
-                            <CheckoutAddressForm className={loading ? 'opacity-40 pointer-events-none' : ''} />
+                            <CheckoutAddressForm
+                                className={cn(
+                                    'transition-opacity duration-200',
+                                    isFormDisabled && 'opacity-50 pointer-events-none'
+                                )}
+                            />
                         </div>
 
                         {/* Правая часть - сайдбар */}
-                        <div className="w-full lg:w-[450px] order-first lg:order-last">
+                        <div className="w-full xl:w-[400px] 2xl:w-[450px] order-first xl:order-last">
                             <CheckoutSidebar
                                 totalAmount={totalAmount}
-                                loading={loading || submitting}
+                                loading={isFormDisabled}
+                                className="sticky top-4"
                             />
                         </div>
                     </div>
