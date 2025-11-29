@@ -62,7 +62,7 @@ export const CheckoutItem: React.FC<Props> = ({
 
                 {/* Цена на десктопе */}
                 <CartItemDetails.Price
-                    value={price * quantity}
+                    value={price}
                     className="hidden sm:block text-lg font-bold min-w-[80px] text-right"
                 />
 

@@ -51,7 +51,7 @@ export const WhiteBlock: React.FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <div className={cn(
-            'bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl', // Адаптивные скругления
+            'bg-black rounded-xl sm:rounded-2xl lg:rounded-3xl', // Адаптивные скругления
             shadowClasses[shadow],
             'border border-gray-100', // Добавляем тонкую границу для четкости
             className
