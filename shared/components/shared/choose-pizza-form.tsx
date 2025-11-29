@@ -64,15 +64,15 @@ export const ChoosePizzaForm: React.FC<Props> = ({
     return (
         <div className={cn(className, 'flex flex-col lg:flex-row flex-1 min-h-0')}>
             {/* Изображение пиццы */}
-            <div className="lg:flex-1 flex justify-center items-center p-4 sm:p-6 bg-secondary min-h-[300px] sm:min-h-[400px]">
+            <div className="lg:flex-1 flex justify-center items-center p-4 sm:p-6 bg-gray-800 min-h-[300px] sm:min-h-[400px]">
                 <PizzaImage imageUrl={imageUrl} />
             </div>
 
             {/* Форма выбора */}
-            <div className="w-full lg:w-[490px] bg-[#f7f6f5] p-4 sm:p-6 lg:p-7 flex flex-col min-h-0">
+            <div className="w-full lg:w-[490px] bg-gray-800 text-white p-4 sm:p-6 lg:p-7 flex flex-col min-h-0">
                 <Title text={name} size="md" className="font-extrabold mb-1" />
 
-                <p className="text-gray-400 text-sm sm:text-base">{textDetaills}</p>
+                <p className="text-gray-300 text-sm sm:text-base">{textDetaills}</p>
 
                 <div className="flex flex-col gap-4 mt-4 sm:mt-5">
                     <GroupVariants
@@ -84,7 +84,7 @@ export const ChoosePizzaForm: React.FC<Props> = ({
 
                 {/* Контейнер ингредиентов с гибкой высотой */}
                 <div className="flex-1 min-h-0 flex flex-col mt-4 sm:mt-5">
-                    <div className="bg-gray-50 p-3 sm:p-4 lg:p-5 rounded-md flex-1 min-h-0 overflow-auto scrollbar">
+                    <div className="bg-gray-700 p-3 sm:p-4 lg:p-5 rounded-md flex-1 min-h-0 overflow-auto scrollbar">
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                             {ingredients.map((ingredient) => (
                                 <IngredientItem

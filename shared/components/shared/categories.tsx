@@ -15,16 +15,16 @@ export const Categories: React.FC<Props> = ({ items, className }) => {
     const categoryActiveId = useCategoryStore((state) => state.activeId);
 
     return (
-        <div className={cn('inline-flex gap-1 bg-gray-50 p-1 rounded-2xl', className)}>
+        <div className={cn('inline-flex gap-1 bg-gray-800 p-1 rounded-2xl', className)}>
             {items.map(({ name, id }, index) => (
                 <a
                     className={cn(
-                        'flex items-center font-bold h-11 rounded-2xl px-3 sm:px-4 md:px-5 whitespace-nowrap', // Адаптивные отступы и запрет переноса
-                        categoryActiveId === id && 'bg-white shadow-md shadow-gray-200 text-primary',
+                        'flex items-center font-bold h-11 rounded-2xl px-3 sm:px-4 md:px-5 whitespace-nowrap text-white', // Добавлен text-white
+                        categoryActiveId === id && 'bg-gray-700 shadow-md shadow-gray-600 text-primary', // Темный фон для активного элемента
                     )}
                     href={`/#${name}`}
                     key={index}>
-                    <button className="text-sm sm:text-base"> {/* Адаптивный размер текста */}
+                    <button className="text-sm sm:text-base">
                         {name}
                     </button>
                 </a>

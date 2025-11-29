@@ -27,7 +27,7 @@ export const ChooseProductModal: React.FC<Props> = ({ product, className }) => {
             <DialogContent
                 className={cn(
                     // Базовые стили
-                    'p-0 bg-white overflow-hidden',
+                    'p-0 bg-gray-900 text-white overflow-hidden', // Изменено на темный фон и белый текст
 
                     // Мобильные стили
                     'w-full h-full max-h-full rounded-none',

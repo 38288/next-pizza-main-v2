@@ -2,7 +2,7 @@
 import React from 'react';
 import { WhiteBlock } from './white-block';
 import { CheckoutItemDetails } from './checkout-item-details';
-import { ArrowRight, Package, Percent, Truck } from 'lucide-react';
+import { ArrowRight, Package, Truck } from 'lucide-react';
 import { Button, Skeleton } from '../ui';
 import { cn } from '@/shared/lib/utils';
 
@@ -97,7 +97,6 @@ const DesktopSidebarContent: React.FC<{ totalAmount: number; totalPrice: number;
 
 // Компонент для мобильной версии
 const MobileSidebarContent: React.FC<{ totalAmount: number; totalPrice: number; loading?: boolean }> = ({
-                                                                                                            totalAmount,
                                                                                                             totalPrice,
                                                                                                             loading
                                                                                                         }) => {

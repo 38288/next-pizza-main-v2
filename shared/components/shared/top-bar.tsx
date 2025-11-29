@@ -1,4 +1,4 @@
-//shared/components/shared/top-bar.tsx
+// shared/components/shared/top-bar.tsx
 import { cn } from '@/shared/lib/utils';
 import React from 'react';
 import { Container } from './container';
@@ -12,7 +12,7 @@ interface Props {
 
 export const TopBar: React.FC<Props> = ({ categories, className }) => {
     return (
-        <div className={cn('sticky top-0 bg-white py-4 shadow-lg shadow-black/5 z-10', className)}>
+        <div className={cn('sticky top-0 bg-black py-4 shadow-lg shadow-white/5 z-10', className)}>
             {/* Десктопная версия */}
             <div className="hidden lg:block">
                 <Container className="flex items-center justify-between">
