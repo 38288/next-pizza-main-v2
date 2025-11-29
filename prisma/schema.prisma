@@ -17,15 +17,6 @@ model Category {
   updatedAt DateTime @updatedAt
 }
 
-model TestCategory {
-  id           Int           @id @default(autoincrement())
-  name         String        @unique
-  testProducts TestProduct[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 model Product {
   id Int @id @default(autoincrement())
 
@@ -37,21 +28,6 @@ model Product {
 
   category   Category @relation(fields: [categoryId], references: [id])
   categoryId Int
-
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  testIngredientId Int?
-}
-
-model TestProduct {
-  id       Int    @id @default(autoincrement())
-  name     String
-  imageUrl String
-
-  testItems TestProductItem[]
-
-  testCategory   TestCategory @relation(fields: [testCategoryId], references: [id])
-  testCategoryId Int
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -68,17 +44,6 @@ model ProductItem {
 
   product   Product @relation(fields: [productId], references: [id])
   productId Int
-}
-
-model TestProductItem {
-  id Int @id @default(autoincrement())
-
-  price     Int
-  size      Int?
-  pizzaType Int?
-
-  testProduct   TestProduct @relation(fields: [testProductId], references: [id])
-  testProductId Int
 }
 
 model Ingredient {
@@ -144,9 +109,8 @@ model CartItem {
 
   ingredients Ingredient[]
 
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  testIngredientId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Order {
@@ -218,3 +182,50 @@ enum UserRole {
 }
 
 // Добавьте эту модель к существующим:
+model TestIngredient {
+  id Int @id @default(autoincrement())
+
+  name     String
+  price    Int
+  imageUrl String
+
+  testProducts TestProduct[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TestProductItem {
+  id Int @id @default(autoincrement())
+
+  price     Int
+  size      Int?
+  pizzaType Int?
+
+  testProduct   TestProduct @relation(fields: [testProductId], references: [id])
+  testProductId Int
+}
+
+model TestProduct {
+  id       Int    @id @default(autoincrement())
+  name     String
+  imageUrl String
+
+  testIngredients TestIngredient[]
+  testItems       TestProductItem[]
+
+  testCategory   TestCategory @relation(fields: [testCategoryId], references: [id])
+  testCategoryId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TestCategory {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  testProducts TestProduct[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

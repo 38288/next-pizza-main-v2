@@ -6,8 +6,7 @@ import { ArrowRight, Package, Percent, Truck } from 'lucide-react';
 import { Button, Skeleton } from '../ui';
 import { cn } from '@/shared/lib/utils';
 
-const VAT = 15;
-const DELIVERY_PRICE = 250;
+const DELIVERY_PRICE = 100;
 
 interface Props {
     totalAmount: number;
@@ -16,8 +15,7 @@ interface Props {
 }
 
 export const CheckoutSidebar: React.FC<Props> = ({ totalAmount, loading, className }) => {
-    const vatPrice = (totalAmount * VAT) / 100;
-    const totalPrice = totalAmount + DELIVERY_PRICE + vatPrice;
+    const totalPrice = totalAmount + DELIVERY_PRICE;
 
     return (
         <>
@@ -54,7 +52,6 @@ const DesktopSidebarContent: React.FC<{ totalAmount: number; totalPrice: number;
                                                                                                              totalPrice,
                                                                                                              loading
                                                                                                          }) => {
-    const vatPrice = (totalAmount * VAT) / 100;
 
     return (
         <>
@@ -76,15 +73,7 @@ const DesktopSidebarContent: React.FC<{ totalAmount: number; totalPrice: number;
                 }
                 value={loading ? <Skeleton className="h-6 w-16 rounded-[6px]" /> : `${totalAmount} ₽`}
             />
-            <CheckoutItemDetails
-                title={
-                    <div className="flex items-center">
-                        <Percent size={18} className="mr-2 text-gray-400" />
-                        Налоги:
-                    </div>
-                }
-                value={loading ? <Skeleton className="h-6 w-16 rounded-[6px]" /> : `${vatPrice} ₽`}
-            />
+
             <CheckoutItemDetails
                 title={
                     <div className="flex items-center">

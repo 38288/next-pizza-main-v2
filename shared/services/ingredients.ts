@@ -1,3 +1,4 @@
+//shared/services/ingredients.ts
 import { axiosInstance } from './instance';
 import { ApiRoutes } from './constants';
 import { Ingredient } from '@prisma/client';
