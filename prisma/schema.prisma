@@ -40,7 +40,6 @@ model Product {
 
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
-  TestIngredient   TestIngredient? @relation(fields: [testIngredientId], references: [id])
   testIngredientId Int?
 }
 
@@ -96,8 +95,6 @@ model Ingredient {
   updatedAt DateTime @updatedAt
 }
 
-
-
 model User {
   id Int @id @default(autoincrement())
 
@@ -149,7 +146,6 @@ model CartItem {
 
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
-  TestIngredient   TestIngredient? @relation(fields: [testIngredientId], references: [id])
   testIngredientId Int?
 }
 
