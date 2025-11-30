@@ -37,9 +37,9 @@ export const WhiteBlock: React.FC<React.PropsWithChildren<Props>> = ({
 
     const shadowClasses = {
         none: '',
-        sm: 'shadow-sm',
-        md: 'shadow-md',
-        lg: 'shadow-lg'
+        sm: 'shadow-sm shadow-gray-800',
+        md: 'shadow-md shadow-gray-800',
+        lg: 'shadow-lg shadow-gray-800'
     };
 
     const titlePaddingClasses = {
@@ -51,20 +51,20 @@ export const WhiteBlock: React.FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <div className={cn(
-            'bg-black rounded-xl sm:rounded-2xl lg:rounded-3xl', // Адаптивные скругления
+            'bg-gray-800 text-white rounded-xl sm:rounded-2xl lg:rounded-3xl', // Адаптивные скругления
             shadowClasses[shadow],
-            'border border-gray-100', // Добавляем тонкую границу для четкости
+            'border border-gray-700', // Темная граница для темной темы
             className
         )}>
             {title && (
                 <div className={cn(
-                    'flex items-center justify-between border-b border-gray-100',
+                    'flex items-center justify-between border-b border-gray-700', // Темная граница
                     titlePaddingClasses[padding]
                 )}>
                     <Title
                         text={title}
                         size="sm"
-                        className="font-bold text-base sm:text-lg" // Адаптивный размер текста
+                        className="font-bold text-base sm:text-lg text-white" // Белый текст
                     />
                     {endAdornment}
                 </div>

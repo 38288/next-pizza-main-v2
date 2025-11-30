@@ -82,9 +82,9 @@ export const ChoosePizzaForm: React.FC<Props> = ({
                     />
                 </div>
 
-                {/* Контейнер ингредиентов с гибкой высотой */}
+                {/* Контейнер ингредиентов с фиксированной высотой и скроллом */}
                 <div className="flex-1 min-h-0 flex flex-col mt-4 sm:mt-5">
-                    <div className="bg-gray-700 p-3 sm:p-4 lg:p-5 rounded-md flex-1 min-h-0 overflow-auto scrollbar">
+                    <div className="bg-gray-700 p-3 sm:p-4 lg:p-5 rounded-md h-[300px] sm:h-[350px] lg:h-[400px] overflow-y-auto">
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                             {ingredients.map((ingredient) => (
                                 <IngredientItem

@@ -1,3 +1,4 @@
+//shared/lib/send-email.ts
 import { Resend } from 'resend';
 
 export const sendEmail = async (to: string, subject: string, template: React.ReactNode) => {

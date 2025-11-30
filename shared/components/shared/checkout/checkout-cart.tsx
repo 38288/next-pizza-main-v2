@@ -54,8 +54,8 @@ export const CheckoutCart: React.FC<Props> = ({
             {/* Пустая корзина */}
             {!loading && items.length === 0 && (
                 <div className="text-center py-8 sm:py-12">
-                    <p className="text-gray-500 text-lg">Корзина пуста</p>
-                    <p className="text-gray-400 text-sm mt-2">Добавьте товары чтобы продолжить</p>
+                    <p className="text-gray-400 text-lg">Корзина пуста</p>
+                    <p className="text-gray-500 text-sm mt-2">Добавьте товары чтобы продолжить</p>
                 </div>
             )}
         </WhiteBlock>

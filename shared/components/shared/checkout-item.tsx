@@ -27,7 +27,7 @@ export const CheckoutItem: React.FC<Props> = ({
     return (
         <div
             className={cn(
-                'flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white rounded-lg sm:bg-transparent sm:p-0', // Карточка на мобильных
+                'flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-gray-800 rounded-lg sm:bg-transparent sm:p-0', // Темная карточка на мобильных
                 {
                     'opacity-50 pointer-events-none': disabled,
                 },
@@ -42,10 +42,10 @@ export const CheckoutItem: React.FC<Props> = ({
 
                     {/* Цена на мобильных - под информацией */}
                     <div className="flex items-center justify-between mt-2 sm:hidden">
-                        <CartItemDetails.Price value={price * quantity} className="text-base font-bold" />
-                        <span className="text-sm text-gray-500">
-              {price} ₽ × {quantity}
-            </span>
+                        <CartItemDetails.Price value={price * quantity} className="text-base font-bold text-white" />
+                        <span className="text-sm text-gray-400">
+                            {price} ₽ × {quantity}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -63,14 +63,14 @@ export const CheckoutItem: React.FC<Props> = ({
                 {/* Цена на десктопе */}
                 <CartItemDetails.Price
                     value={price}
-                    className="hidden sm:block text-lg font-bold min-w-[80px] text-right"
+                    className="hidden sm:block text-lg font-bold min-w-[80px] text-right text-white"
                 />
 
                 {/* Кнопка удаления */}
                 <button
                     type="button"
                     onClick={onClickRemove}
-                    className="text-gray-400 hover:text-red-500 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-lg hover:bg-red-50 sm:ml-5"
+                    className="text-gray-400 hover:text-red-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-lg hover:bg-gray-700 sm:ml-5"
                 >
                     <X size={20} className="w-5 h-5" />
                 </button>
