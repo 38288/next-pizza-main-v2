@@ -9,7 +9,6 @@ import { OrderStatus, Prisma } from '@prisma/client';
 import { hashSync } from 'bcrypt';
 import { cookies } from 'next/headers';
 
-// app/actions.ts
 export async function createOrder(data: CheckoutFormValues) {
     try {
         const cookieStore = cookies();
@@ -48,19 +47,29 @@ export async function createOrder(data: CheckoutFormValues) {
         }
 
         /* Создаем заказ */
+        const orderData: any = {
+            token: cartToken,
+            fullName: data.firstName,
+            phone: data.phone,
+            address: data.address || '',
+            city: data.city,
+            comment: data.comment,
+            totalAmount: userCart.totalAmount,
+            status: OrderStatus.SUCCEEDED,
+            items: JSON.stringify(userCart.items),
+        };
+
+        // Добавляем опциональные поля если они есть в модели
+        if (data.deliveryType) {
+            orderData.deliveryType = data.deliveryType;
+        }
+
+        if (data.paymentMethod) {
+            orderData.paymentMethod = data.paymentMethod;
+        }
+
         const order = await prisma.order.create({
-            data: {
-                token: cartToken,
-                fullName: data.firstName + ' ' + data.lastName,
-                email: data.email,
-                phone: data.phone,
-                address: data.address || '',
-                city: data.city,
-                comment: data.comment,
-                totalAmount: userCart.totalAmount,
-                status: OrderStatus.SUCCEEDED,
-                items: JSON.stringify(userCart.items),
-            },
+            data: orderData,
         });
 
         /* Очищаем корзину */
@@ -79,16 +88,17 @@ export async function createOrder(data: CheckoutFormValues) {
             },
         });
 
-        /* Отправляем уведомление в Telegram */
+        /* Отправляем уведомление в Telegram с обновленной информацией */
         await sendOrderToTelegram(order, userCart.items, data);
 
         console.log(`✅ Заказ #${order.id} создан для города: ${data.city}`);
+        console.log(`📦 Тип доставки: ${data.deliveryType || 'не указан'}`);
+        console.log(`💳 Способ оплаты: ${data.paymentMethod || 'не указан'}`);
 
-        // Возвращаем успешный результат
         return {
             orderId: order.id,
             success: true,
-            redirectUrl: '/' // Добавляем URL для редиректа
+            redirectUrl: '/'
         };
 
     } catch (err) {
@@ -106,35 +116,39 @@ async function sendOrderToTelegram(order: any, cartItems: any[], formData: Check
             const size = item.productItem?.size;
 
             // Определяем тип мяса по размеру
-            let meat = '';
-            if (size === 20) {
-                meat = "Свинина";
-            } else if (size === 30) {
-                meat = "Курица";
-            } else if (size === 40) {
-                meat = "Сосиски";
-            }
+            const meatMapping: { [key: number]: string } = {
+                20: "Свинина",
+                30: "Курица",
+                40: "Сосиски"
+            };
+            const meat = meatMapping[size] || '';
 
-            // Добавляем размер и мясо в описание
-            const sizeAndMeat = size ? `, ${meat ? ` (${meat})` : ''}` : '';
+            // Формируем строку с мясом
+            const meatInfo = meat ? ` (${meat})` : '';
 
             const ingredients = item.ingredients?.length > 0
                 ? `\n   🧂 Допы: ${item.ingredients.map((ing: any) => ing.name).join(', ')}`
                 : '';
 
-            return `• ${productName}${sizeAndMeat} - ${item.quantity}шт.${ingredients}`;
+            return `• ${productName}${meatInfo} - ${item.quantity}шт.${ingredients}`;
         }).join('\n');
+
+        // Добавляем информацию о доставке и оплате
+        const deliveryInfo = formData.deliveryType ?
+            `🚚 <b>Тип доставки:</b> ${formData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` : '';
+
+        const paymentInfo = formData.paymentMethod ?
+            `💳 <b>Способ оплаты:</b> ${formData.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}\n` : '';
 
         // Создаем сообщение
         const message = `
 🆕 <b>НОВЫЙ ЗАКАЗ #${order.id}</b>
 
-👤 <b>Клиент:</b> ${formData.firstName} ${formData.lastName}
+👤 <b>Клиент:</b> ${formData.firstName}
 📞 <b>Телефон:</b> ${formData.phone}
-📧 <b>Email:</b> ${formData.email}
 🏙️ <b>Город:</b> ${formData.city}
 📍 <b>Адрес:</b> ${formData.address || 'Не указан'}
-💬 <b>Комментарий:</b> ${formData.comment || 'Нет'}
+${deliveryInfo}${paymentInfo}💬 <b>Комментарий:</b> ${formData.comment || 'Нет'}
 
 🛒 <b>Состав заказа:</b>
 ${itemsText}
@@ -156,7 +170,7 @@ export async function updateUserInfo(body: Prisma.UserUpdateInput) {
         const currentUser = await getUserSession();
 
         if (!currentUser) {
-            throw new Error('Пользователь не найден');
+            throw new Error('Пользователь не найден');
         }
 
         const findUser = await prisma.user.findFirst({
@@ -213,15 +227,6 @@ export async function registerUser(body: Prisma.UserCreateInput) {
                 userId: createdUser.id,
             },
         });
-
-        // УБРАТЬ эти строки, так как мы удалили отправку email
-        // await sendEmail(
-        //   createdUser.email,
-        //   'Next Pizza / 📝 Подтверждение регистрации',
-        //   VerificationUserTemplate({
-        //     code,
-        //   }),
-        // );
 
         console.log(`Код подтверждения для ${createdUser.email}: ${code}`);
 

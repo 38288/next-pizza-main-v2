@@ -11,6 +11,7 @@ import {
     CheckoutAddressForm,
     CheckoutCart,
     CheckoutPersonalForm,
+    CheckoutSelectReceipt,
 } from '@/shared/components';
 import { CheckoutFormValues, checkoutFormSchema } from '@/shared/constants';
 import { useCart } from '@/shared/hooks';
@@ -21,26 +22,30 @@ import { useSession } from 'next-auth/react';
 import { Api } from '@/shared/services/api-client';
 import { cn } from '@/shared/lib/utils';
 import { useCity } from '@/shared/hooks/use-city';
-import {useRouter} from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
     const [submitting, setSubmitting] = React.useState(false);
+    const [deliveryType, setDeliveryType] = React.useState<'delivery' | 'pickup'>('delivery');
+    const [paymentMethod, setPaymentMethod] = React.useState<'cash' | 'online'>('cash');
+
     const { totalAmount, updateItemQuantity, items, removeCartItem, loading } = useCart();
     const { data: session } = useSession();
     const { selectedCity, isInitialized, useCitySubscription } = useCity();
-    const router = useRouter(); // Добавьте эту строку
-
+    const router = useRouter();
 
     const form = useForm<CheckoutFormValues>({
         resolver: zodResolver(checkoutFormSchema),
         defaultValues: {
-            email: '',
+            //email: '',
             firstName: '',
-            lastName: '',
+            //lastName: '',
             phone: '',
             address: '',
             comment: '',
-            city: selectedCity, // Добавляем город в значения по умолчанию
+            city: selectedCity,
+            deliveryType: 'delivery',
+            paymentMethod: 'cash',
         },
     });
 
@@ -56,19 +61,30 @@ export default function CheckoutPage() {
         }
     }, [selectedCity, isInitialized, form]);
 
+    // Синхронизируем локальные состояния с формой
+    React.useEffect(() => {
+        form.setValue('deliveryType', deliveryType);
+    }, [deliveryType, form]);
+
+    React.useEffect(() => {
+        form.setValue('paymentMethod', paymentMethod);
+    }, [paymentMethod, form]);
+
     const fetchUserInfo = React.useCallback(async () => {
         try {
             const data = await Api.auth.getMe();
             const [firstName, lastName] = data.fullName.split(' ');
 
             form.setValue('firstName', firstName || '');
-            form.setValue('lastName', lastName || '');
-            form.setValue('email', data.email || '');
-            form.setValue('city', selectedCity); // Устанавливаем город при загрузке данных пользователя
+            //form.setValue('lastName', lastName || '');
+            //form.setValue('email', data.email || '');
+            form.setValue('city', selectedCity);
+            form.setValue('deliveryType', deliveryType);
+            form.setValue('paymentMethod', paymentMethod);
         } catch (error) {
             console.error('Ошибка загрузки данных пользователя:', error);
         }
-    }, [form, selectedCity]);
+    }, [form, selectedCity, deliveryType, paymentMethod]);
 
     React.useEffect(() => {
         if (session && isInitialized) {
@@ -91,7 +107,7 @@ export default function CheckoutPage() {
 
             // Перенаправляем на главную страницу
             setTimeout(() => {
-                router.push('/'); // Редирект на главную
+                router.push('/');
             }, 1500);
 
         } catch (err) {
@@ -144,40 +160,22 @@ export default function CheckoutPage() {
                 className="font-extrabold mb-4 sm:mb-6 lg:mb-8 text-xl sm:text-2xl lg:text-3xl text-center lg:text-left"
             />
 
-            {/* Блок с информацией о выбранном городе */}
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-blue-900">
-                            Город доставки: <span className="font-bold">{selectedCity}</span>
-                        </p>
-                        <p className="text-xs text-blue-700 mt-1">
-                            Доступность товаров и условия доставки зависят от выбранного города
-                        </p>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-xs text-blue-600">
-                            Город сохранен в заказе
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                            className="text-xs text-blue-600 hover:text-blue-800 underline mt-1"
-                        >
-                            Изменить город
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Скрытое поле для города (опционально) */}
-            <input type="hidden" {...form.register('city')} />
+            {/* Скрытые поля для deliveryType и paymentMethod */}
+            <input type="hidden" {...form.register('deliveryType')} />
+            <input type="hidden" {...form.register('paymentMethod')} />
 
             <FormProvider {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                     <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 lg:gap-8">
                         {/* Левая часть - формы */}
                         <div className="flex flex-col gap-4 sm:gap-6 lg:gap-8 flex-1">
+                            <CheckoutSelectReceipt
+                                deliveryType={deliveryType}
+                                setDeliveryType={setDeliveryType}
+                                paymentMethod={paymentMethod}
+                                setPaymentMethod={setPaymentMethod}
+                            />
+
                             <CheckoutCart
                                 onClickCountButton={onClickCountButton}
                                 removeCartItem={removeCartItem}
@@ -198,13 +196,6 @@ export default function CheckoutPage() {
                                     isFormDisabled && 'opacity-50 pointer-events-none'
                                 )}
                             />
-
-                            {/* Отладочная информация (можно удалить в продакшене) */}
-                            <div className="p-4 bg-gray-50 rounded-lg border">
-                                <p className="text-sm text-gray-600">
-                                    <strong>Отладка:</strong> Город в форме: {form.watch('city')}
-                                </p>
-                            </div>
                         </div>
 
                         {/* Правая часть - сайдбар */}

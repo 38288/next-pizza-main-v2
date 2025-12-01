@@ -23,21 +23,7 @@ export const CheckoutPersonalForm: React.FC<Props> = ({ className }) => {
                     placeholder="Введите ваше имя"
                     className="w-full"
                 />
-                <FormInput
-                    name="lastName"
-                    label="Фамилия"
-                    required
-                    placeholder="Введите вашу фамилию"
-                    className="w-full"
-                />
-                <FormInput
-                    name="email"
-                    label="E-Mail"
-                    type="email"
-                    required
-                    placeholder="your@email.com"
-                    className="w-full sm:col-span-2"
-                />
+
                 <FormInput
                     name="phone"
                     label="Телефон"

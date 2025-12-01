@@ -20,9 +20,8 @@ export const CheckoutSidebar: React.FC<Props> = ({ totalAmount, loading, selecte
 
     return (
         <>
-            {/* Десктопная версия */}
             <WhiteBlock className={cn(
-                'p-6 sticky top-4 hidden lg:block', // Скрываем на мобильных
+                'p-6 sticky top-4 lg:block',
                 className
             )}>
                 <DesktopSidebarContent
@@ -32,22 +31,10 @@ export const CheckoutSidebar: React.FC<Props> = ({ totalAmount, loading, selecte
                 />
             </WhiteBlock>
 
-            {/* Мобильная версия - фиксированная внизу */}
-            <div className={cn(
-                'lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50 p-4 safe-area-bottom', // Фиксированная позиция
-                className
-            )}>
-                <MobileSidebarContent
-                    totalAmount={totalAmount}
-                    totalPrice={totalPrice}
-                    loading={loading}
-                />
-            </div>
         </>
     );
 };
 
-// Компонент для десктопной версии
 const DesktopSidebarContent: React.FC<{ totalAmount: number; totalPrice: number; loading?: boolean }> = ({
                                                                                                              totalAmount,
                                                                                                              totalPrice,
@@ -89,40 +76,10 @@ const DesktopSidebarContent: React.FC<{ totalAmount: number; totalPrice: number;
                 loading={loading}
                 type="submit"
                 className="w-full h-14 rounded-2xl mt-6 text-base font-bold">
-                Перейти к оплате
+                Заказать
                 <ArrowRight className="w-5 ml-2" />
             </Button>
         </>
     );
 };
 
-// Компонент для мобильной версии
-const MobileSidebarContent: React.FC<{ totalAmount: number; totalPrice: number; loading?: boolean }> = ({
-                                                                                                            totalPrice,
-                                                                                                            loading
-                                                                                                        }) => {
-    return (
-        <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                    <span className="text-sm text-gray-600">Общая сумма:</span>
-                    {loading ? (
-                        <Skeleton className="h-6 w-24 mt-1" />
-                    ) : (
-                        <span className="text-xl font-bold">{totalPrice} ₽</span>
-                    )}
-                </div>
-
-                <Button
-                    loading={loading}
-                    type="submit"
-                    className="h-12 px-6 rounded-xl text-sm font-bold flex-1 max-w-[200px]">
-                    Оплатить
-                    <ArrowRight className="w-4 ml-2" />
-                </Button>
-            </div>
-
-            {/* Детали на мобильных можно показать по клику, если нужно */}
-        </div>
-    );
-};
