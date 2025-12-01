@@ -1,10 +1,10 @@
-//shared/components/shared/profile-form.tsx
+// shared/components/shared/profile-form.tsx
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import React from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
-import { TFormRegisterValues, formRegisterSchema } from './modals/auth-modal/forms/schemas';
+import { TFormProfileValues, formProfileSchema } from './profile-form-schemas'; // Нужно создать новую схему для профиля
 import { User } from '@prisma/client';
 import toast from 'react-hot-toast';
 import { signOut } from 'next-auth/react';
@@ -21,27 +21,27 @@ interface Props {
 }
 
 export const ProfileForm: React.FC<Props> = ({ data, className }) => {
-    const form = useForm({
-        resolver: zodResolver(formRegisterSchema),
+    const form = useForm<TFormProfileValues>({
+        resolver: zodResolver(formProfileSchema),
         defaultValues: {
             fullName: data.fullName,
-            email: data.email,
+            phone: data.phone, // Изменяем с email на phone
             password: '',
             confirmPassword: '',
         },
     });
 
-    const onSubmit = async (formData: TFormRegisterValues) => {
+    const onSubmit = async (formData: TFormProfileValues) => {
         try {
             await updateUserInfo({
-                email: formData.email,
                 fullName: formData.fullName,
-                password: formData.password,
+                phone: formData.phone, // Теперь передаем phone вместо email
+                ...(formData.password && { password: formData.password }), // Передаем пароль только если он указан
             });
 
             toast.success('Данные обновлены 📝', {
                 duration: 3000,
-                position: 'bottom-center', // Лучшая позиция для мобильных
+                position: 'bottom-center',
             });
 
             // Сбрасываем поля паролей после успешного обновления
@@ -77,7 +77,7 @@ export const ProfileForm: React.FC<Props> = ({ data, className }) => {
                     className="flex flex-col gap-4 sm:gap-5 w-full max-w-md sm:max-w-96 mt-6 sm:mt-8 lg:mt-10 mx-auto sm:mx-0"
                     onSubmit={form.handleSubmit(onSubmit)}
                 >
-                    <FormInput name="email" label="E-Mail" required />
+                    <FormInput name="phone" label="Телефон" required /> {/* Изменяем с email на phone */}
                     <FormInput name="fullName" label="Полное имя" required />
 
                     <div className="mt-2 sm:mt-4">

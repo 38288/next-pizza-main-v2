@@ -25,24 +25,26 @@ const generateProductItem = ({
 };
 
 async function up() {
-  await prisma.user.createMany({
-    data: [
-      {
-        fullName: 'User Test',
-        email: 'user@test.ru',
-        password: hashSync('111111', 10),
-        verified: new Date(),
-        role: 'USER',
-      },
-      {
-        fullName: 'Admin Admin',
-        email: 'admin@test.ru',
-        password: hashSync('111111', 10),
-        verified: new Date(),
-        role: 'ADMIN',
-      },
-    ],
-  });
+    await prisma.user.createMany({
+        data: [
+            {
+                fullName: 'User Test',
+                email: 'user@test.ru',
+                phone: '+79999999999', // Добавляем телефон
+                password: hashSync('111111', 10),
+                verified: new Date(),
+                role: 'USER',
+            },
+            {
+                fullName: 'Admin Test',
+                email: 'admin@test.ru',
+                phone: '+78888888888', // Добавляем телефон
+                password: hashSync('111111', 10),
+                verified: new Date(),
+                role: 'ADMIN',
+            },
+        ],
+    });
 
   await prisma.category.createMany({
     data: categories,

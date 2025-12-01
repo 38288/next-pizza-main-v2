@@ -8,148 +8,180 @@ import { compare, hashSync } from 'bcrypt';
 import { UserRole } from '@prisma/client';
 
 export const authOptions: AuthOptions = {
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
-    GitHubProvider({
-      clientId: process.env.GITHUB_ID || '',
-      clientSecret: process.env.GITHUB_SECRET || '',
-      profile(profile) {
-        return {
-          id: profile.id,
-          name: profile.name || profile.login,
-          email: profile.email,
-          image: profile.avatar_url,
-          role: 'USER' as UserRole,
-        };
-      },
-    }),
-    CredentialsProvider({
-      name: 'Credentials',
-      credentials: {
-        email: { label: 'Email', type: 'text' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials) {
-          return null;
-        }
-
-        const values = {
-          email: credentials.email,
-        };
-
-        const findUser = await prisma.user.findFirst({
-          where: values,
-        });
-
-        if (!findUser) {
-          return null;
-        }
-
-        const isPasswordValid = await compare(credentials.password, findUser.password);
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        if (!findUser.verified) {
-          return null;
-        }
-
-        return {
-          id: findUser.id,
-          email: findUser.email,
-          name: findUser.fullName,
-          role: findUser.role,
-        };
-      },
-    }),
-  ],
-  secret: process.env.NEXTAUTH_SECRET,
-  session: {
-    strategy: 'jwt',
-  },
-  callbacks: {
-    async signIn({ user, account }) {
-      try {
-        if (account?.provider === 'credentials') {
-          return true;
-        }
-
-        if (!user.email) {
-          return false;
-        }
-
-        const findUser = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { provider: account?.provider, providerId: account?.providerAccountId },
-              { email: user.email },
-            ],
-          },
-        });
-
-        if (findUser) {
-          await prisma.user.update({
-            where: {
-              id: findUser.id,
+    providers: [
+        GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID || '',
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+            profile(profile) {
+                return {
+                    id: profile.sub,
+                    name: profile.name,
+                    email: profile.email,
+                    image: profile.picture,
+                    role: 'USER' as UserRole,
+                };
             },
-            data: {
-              provider: account?.provider,
-              providerId: account?.providerAccountId,
+        }),
+        GitHubProvider({
+            clientId: process.env.GITHUB_ID || '',
+            clientSecret: process.env.GITHUB_SECRET || '',
+            profile(profile) {
+                return {
+                    id: profile.id.toString(),
+                    name: profile.name || profile.login,
+                    email: profile.email,
+                    image: profile.avatar_url,
+                    role: 'USER' as UserRole,
+                };
             },
-          });
+        }),
+        CredentialsProvider({
+            name: 'credentials',
+            credentials: {
+                phone: { label: 'Телефон', type: 'text' },
+                password: { label: 'Пароль', type: 'password' },
+            },
+            async authorize(credentials) {
+                if (!credentials?.phone || !credentials?.password) {
+                    throw new Error('Введите телефон и пароль');
+                }
 
-          return true;
-        }
+                const findUser = await prisma.user.findFirst({
+                    where: {
+                        phone: credentials.phone,
+                    },
+                });
 
-        await prisma.user.create({
-          data: {
-            email: user.email,
-            fullName: user.name || 'User #' + user.id,
-            password: hashSync(user.id.toString(), 10),
-            verified: new Date(),
-            provider: account?.provider,
-            providerId: account?.providerAccountId,
-          },
-        });
+                if (!findUser) {
+                    throw new Error('Пользователь с таким телефоном не найден');
+                }
 
-        return true;
-      } catch (error) {
-        console.error('Error [SIGNIN]', error);
-        return false;
-      }
+                const isPasswordValid = await compare(credentials.password, findUser.password);
+
+                if (!isPasswordValid) {
+                    throw new Error('Неверный пароль');
+                }
+
+                if (!findUser.verified) {
+                    throw new Error('Телефон не подтвержден');
+                }
+
+                return {
+                    id: findUser.id.toString(),
+                    email: findUser.email,
+                    phone: findUser.phone,
+                    name: findUser.fullName,
+                    role: findUser.role,
+                };
+            },
+        }),
+    ],
+    secret: process.env.NEXTAUTH_SECRET,
+    session: {
+        strategy: 'jwt',
     },
-    async jwt({ token }) {
-      if (!token.email) {
-        return token;
-      }
+    callbacks: {
+        async signIn({ user, account }) {
+            try {
+                if (account?.provider === 'credentials') {
+                    return true;
+                }
 
-      const findUser = await prisma.user.findFirst({
-        where: {
-          email: token.email,
+                // Для OAuth провайдеров (Google, GitHub) проверяем по email
+                if (!user.email) {
+                    return false;
+                }
+
+                const findUser = await prisma.user.findFirst({
+                    where: {
+                        OR: [
+                            { provider: account?.provider, providerId: account?.providerAccountId },
+                            { email: user.email },
+                        ],
+                    },
+                });
+
+                if (findUser) {
+                    // Обновляем информацию о провайдере если пользователь найден
+                    await prisma.user.update({
+                        where: {
+                            id: findUser.id,
+                        },
+                        data: {
+                            provider: account?.provider,
+                            providerId: account?.providerAccountId,
+                        },
+                    });
+
+                    return true;
+                }
+
+                // Создаем нового пользователя для OAuth
+                await prisma.user.create({
+                    data: {
+                        email: user.email,
+                        phone: '', // Генерируем временный телефон для OAuth пользователей
+                        fullName: user.name || 'User #' + user.id,
+                        password: hashSync(user.id.toString() + Date.now(), 10),
+                        verified: new Date(),
+                        provider: account?.provider,
+                        providerId: account?.providerAccountId,
+                    },
+                });
+
+                return true;
+            } catch (error) {
+                console.error('Error [SIGNIN]', error);
+                return false;
+            }
         },
-      });
+        async jwt({ token, user }) {
+            // Если это первый вход через credentials, у пользователя будет телефон
+            if (user) {
+                return {
+                    ...token,
+                    id: user.id,
+                    email: user.email,
+                    phone: user.phone,
+                    name: user.name,
+                    role: user.role,
+                };
+            }
 
-      if (findUser) {
-        token.id = String(findUser.id);
-        token.email = findUser.email;
-        token.fullName = findUser.fullName;
-        token.role = findUser.role;
-      }
+            // Для существующего токена ищем пользователя по email или phone
+            if (token.email) {
+                const findUser = await prisma.user.findFirst({
+                    where: {
+                        OR: [
+                            { email: token.email as string },
+                            { phone: token.phone as string },
+                        ],
+                    },
+                });
 
-      return token;
+                if (findUser) {
+                    token.id = String(findUser.id);
+                    token.email = findUser.email;
+                    token.phone = findUser.phone;
+                    token.name = findUser.fullName;
+                    token.role = findUser.role;
+                }
+            }
+
+            return token;
+        },
+        async session({ session, token }) {
+            if (session?.user) {
+                session.user.id = token.id as string;
+                session.user.role = token.role as UserRole;
+                session.user.phone = token.phone as string;
+                session.user.email = token.email as string;
+            }
+
+            return session;
+        },
     },
-    session({ session, token }) {
-      if (session?.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-      }
-
-      return session;
+    pages: {
+        signIn: '/auth/login',
     },
-  },
 };

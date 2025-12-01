@@ -161,7 +161,11 @@ ${itemsText}
     }
 }
 
-export async function updateUserInfo(body: Prisma.UserUpdateInput) {
+export async function updateUserInfo(body: {
+    fullName?: string;
+    phone?: string;
+    password?: string;
+}) {
     try {
         const currentUser = await getUserSession();
 
@@ -175,44 +179,78 @@ export async function updateUserInfo(body: Prisma.UserUpdateInput) {
             },
         });
 
+        if (!findUser) {
+            throw new Error('Пользователь не найден');
+        }
+
+        // Проверяем, не занят ли телефон другим пользователем
+        if (body.phone && body.phone !== findUser.phone) {
+            const phoneExists = await prisma.user.findFirst({
+                where: {
+                    phone: body.phone,
+                    NOT: {
+                        id: Number(currentUser.id),
+                    },
+                },
+            });
+
+            if (phoneExists) {
+                throw new Error('Этот телефон уже используется другим пользователем');
+            }
+        }
+
+        const updateData: any = {
+            fullName: body.fullName || findUser.fullName,
+            phone: body.phone || findUser.phone,
+        };
+
+        // Обновляем пароль только если он предоставлен
+        if (body.password) {
+            updateData.password = hashSync(body.password, 10);
+        }
+
         await prisma.user.update({
             where: {
                 id: Number(currentUser.id),
             },
-            data: {
-                fullName: body.fullName,
-                email: body.email,
-                phone: body.phone, // Добавляем телефон
-                password: body.password ? hashSync(body.password as string, 10) : findUser?.password,
-            },
+            data: updateData,
         });
+
+        return { success: true };
+
     } catch (err) {
         console.log('Error [UPDATE_USER]', err);
         throw err;
     }
 }
 
-export async function registerUser(body: Prisma.UserCreateInput) {
+export async function registerUser(body: {
+    phone: string;
+    fullName: string;
+    password: string;
+}) {
     try {
+        // Проверяем существование пользователя по телефону (а не по email)
         const user = await prisma.user.findFirst({
             where: {
-                email: body.email,
+                phone: body.phone,
             },
         });
 
         if (user) {
             if (!user.verified) {
-                throw new Error('Почта не подтверждена');
+                throw new Error('Телефон не подтвержден');
             }
 
-            throw new Error('Пользователь уже существует');
+            throw new Error('Пользователь с таким телефоном уже существует');
         }
 
+        // Создаем пользователя с телефоном (email оставляем null или убираем)
         const createdUser = await prisma.user.create({
             data: {
                 fullName: body.fullName,
-                email: body.email,
-                phone: body.phone, // Добавляем обязательное поле phone
+                email: null, // Или можно вообще убрать это поле
+                phone: body.phone,
                 password: hashSync(body.password, 10),
             },
         });
@@ -226,7 +264,10 @@ export async function registerUser(body: Prisma.UserCreateInput) {
             },
         });
 
-        console.log(`Код подтверждения для ${createdUser.email}: ${code}`);
+        // Обновляем сообщение для телефона
+        console.log(`Код подтверждения для ${createdUser.phone}: ${code}`);
+
+        // Здесь можно добавить отправку SMS с кодом подтверждения
 
     } catch (err) {
         console.log('Error [CREATE_USER]', err);

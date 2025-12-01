@@ -1,3 +1,4 @@
+//app/api/checkout/callback/route.ts
 import { PaymentCallbackData } from '@/@types/yookassa';
 import { prisma } from '@/prisma/prisma-client';
 import { OrderSuccessTemplate } from '@/shared/components/shared/email-temapltes/order-success';
@@ -33,15 +34,7 @@ export async function POST(req: NextRequest) {
 
     const items = JSON.parse(order?.items as string) as CartItemDTO[];
 
-    if (isSucceeded) {
-      await sendEmail(
-        order.email,
-        'Next Pizza / Ваш заказ успешно оформлен 🎉',
-        OrderSuccessTemplate({ orderId: order.id, items }),
-      );
-    } else {
-      // Письмо о неуспешной оплате
-    }
+
   } catch (error) {
     console.log('[Checkout Callback] Error:', error);
     return NextResponse.json({ error: 'Server error' });
