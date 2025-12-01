@@ -47,26 +47,20 @@ export async function createOrder(data: CheckoutFormValues) {
         }
 
         /* Создаем заказ */
-        const orderData: any = {
+        const orderData = {
             token: cartToken,
             fullName: data.firstName,
+            email: null,
             phone: data.phone,
             address: data.address || '',
             city: data.city,
-            comment: data.comment,
+            comment: data.comment || null,
+            deliveryType: data.deliveryType,
+            paymentMethod: data.paymentMethod,
             totalAmount: userCart.totalAmount,
             status: OrderStatus.SUCCEEDED,
             items: JSON.stringify(userCart.items),
         };
-
-        // Добавляем опциональные поля если они есть в модели
-        if (data.deliveryType) {
-            orderData.deliveryType = data.deliveryType;
-        }
-
-        if (data.paymentMethod) {
-            orderData.paymentMethod = data.paymentMethod;
-        }
 
         const order = await prisma.order.create({
             data: orderData,
@@ -88,12 +82,14 @@ export async function createOrder(data: CheckoutFormValues) {
             },
         });
 
-        /* Отправляем уведомление в Telegram с обновленной информацией */
+        /* Отправляем уведомление в Telegram */
         await sendOrderToTelegram(order, userCart.items, data);
 
-        console.log(`✅ Заказ #${order.id} создан для города: ${data.city}`);
-        console.log(`📦 Тип доставки: ${data.deliveryType || 'не указан'}`);
-        console.log(`💳 Способ оплаты: ${data.paymentMethod || 'не указан'}`);
+        console.log(`✅ Заказ #${order.id} создан`);
+        console.log(`🏙️ Город: ${data.city}`);
+        console.log(`🚚 Доставка: ${data.deliveryType}`);
+        console.log(`💳 Оплата: ${data.paymentMethod}`);
+        console.log(`💰 Сумма: ${order.totalAmount} ₽`);
 
         return {
             orderId: order.id,
@@ -122,8 +118,6 @@ async function sendOrderToTelegram(order: any, cartItems: any[], formData: Check
                 40: "Сосиски"
             };
             const meat = meatMapping[size] || '';
-
-            // Формируем строку с мясом
             const meatInfo = meat ? ` (${meat})` : '';
 
             const ingredients = item.ingredients?.length > 0
@@ -133,12 +127,15 @@ async function sendOrderToTelegram(order: any, cartItems: any[], formData: Check
             return `• ${productName}${meatInfo} - ${item.quantity}шт.${ingredients}`;
         }).join('\n');
 
-        // Добавляем информацию о доставке и оплате
-        const deliveryInfo = formData.deliveryType ?
-            `🚚 <b>Тип доставки:</b> ${formData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` : '';
+        // Информация о доставке
+        const deliveryInfo = formData.deliveryType === 'delivery'
+            ? `🚚 <b>Доставка</b>\n📍 <b>Адрес:</b> ${formData.address || 'Не указан'}\n`
+            : `🏪 <b>Самовывоз</b>\n`;
 
-        const paymentInfo = formData.paymentMethod ?
-            `💳 <b>Способ оплаты:</b> ${formData.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}\n` : '';
+        // Информация об оплате
+        const paymentInfo = formData.paymentMethod === 'cash'
+            ? '💵 <b>Оплата при получении</b>\n'
+            : '💳 <b>Онлайн оплата</b>\n';
 
         // Создаем сообщение
         const message = `
@@ -147,7 +144,6 @@ async function sendOrderToTelegram(order: any, cartItems: any[], formData: Check
 👤 <b>Клиент:</b> ${formData.firstName}
 📞 <b>Телефон:</b> ${formData.phone}
 🏙️ <b>Город:</b> ${formData.city}
-📍 <b>Адрес:</b> ${formData.address || 'Не указан'}
 ${deliveryInfo}${paymentInfo}💬 <b>Комментарий:</b> ${formData.comment || 'Нет'}
 
 🛒 <b>Состав заказа:</b>
@@ -186,6 +182,7 @@ export async function updateUserInfo(body: Prisma.UserUpdateInput) {
             data: {
                 fullName: body.fullName,
                 email: body.email,
+                phone: body.phone, // Добавляем телефон
                 password: body.password ? hashSync(body.password as string, 10) : findUser?.password,
             },
         });
@@ -215,6 +212,7 @@ export async function registerUser(body: Prisma.UserCreateInput) {
             data: {
                 fullName: body.fullName,
                 email: body.email,
+                phone: body.phone, // Добавляем обязательное поле phone
                 password: hashSync(body.password, 10),
             },
         });

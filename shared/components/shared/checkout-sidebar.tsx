@@ -6,43 +6,59 @@ import { ArrowRight, Package, Truck } from 'lucide-react';
 import { Button, Skeleton } from '../ui';
 import { cn } from '@/shared/lib/utils';
 
-const DELIVERY_PRICE = 100;
+const DELIVERY_PRICE = 130;
 
 interface Props {
     totalAmount: number;
     loading?: boolean;
+    deliveryType: string;
     selectedCity?: string;
     className?: string;
 }
 
-export const CheckoutSidebar: React.FC<Props> = ({ totalAmount, loading, selectedCity, className }) => {
-    const totalPrice = totalAmount + DELIVERY_PRICE;
+export const CheckoutSidebar: React.FC<Props> = ({
+                                                     totalAmount,
+                                                     loading,
+                                                     selectedCity,
+                                                     deliveryType,
+                                                     className
+                                                 }) => {
+    const totalPrice = deliveryType === 'delivery' ? totalAmount + DELIVERY_PRICE : totalAmount;
 
     return (
-        <>
-            <WhiteBlock className={cn(
-                'p-6 sticky top-4 lg:block',
-                className
-            )}>
-                <DesktopSidebarContent
-                    totalAmount={totalAmount}
-                    totalPrice={totalPrice}
-                    loading={loading}
-                />
-            </WhiteBlock>
-
-        </>
+        <WhiteBlock className={cn(
+            'p-6 sticky top-4 lg:block',
+            className
+        )}>
+            <DesktopSidebarContent
+                totalAmount={totalAmount}
+                totalPrice={totalPrice}
+                loading={loading}
+                deliveryType={deliveryType}
+                selectedCity={selectedCity}
+            />
+        </WhiteBlock>
     );
 };
 
-const DesktopSidebarContent: React.FC<{ totalAmount: number; totalPrice: number; loading?: boolean }> = ({
-                                                                                                             totalAmount,
-                                                                                                             totalPrice,
-                                                                                                             loading
-                                                                                                         }) => {
+// Компонент для десктопной версии
+const DesktopSidebarContent: React.FC<{
+    totalAmount: number;
+    totalPrice: number;
+    loading?: boolean;
+    deliveryType: string;
+    selectedCity?: string;
+}> = ({
+          totalAmount,
+          totalPrice,
+          loading,
+          deliveryType,
+          selectedCity
+      }) => {
 
     return (
         <>
+
             <div className="flex flex-col gap-1">
                 <span className="text-xl">Итого:</span>
                 {loading ? (
@@ -62,21 +78,25 @@ const DesktopSidebarContent: React.FC<{ totalAmount: number; totalPrice: number;
                 value={loading ? <Skeleton className="h-6 w-16 rounded-[6px]" /> : `${totalAmount} ₽`}
             />
 
-            <CheckoutItemDetails
-                title={
-                    <div className="flex items-center">
-                        <Truck size={18} className="mr-2 text-gray-400" />
-                        Доставка:
-                    </div>
-                }
-                value={loading ? <Skeleton className="h-6 w-16 rounded-[6px]" /> : `${DELIVERY_PRICE} ₽`}
-            />
+            {deliveryType === 'delivery' && (
+                <CheckoutItemDetails
+                    title={
+                        <div className="flex items-center">
+                            <Truck size={18} className="mr-2 text-gray-400" />
+                            Доставка:
+                        </div>
+                    }
+                    value={loading ? <Skeleton className="h-6 w-16 rounded-[6px]" /> : `${DELIVERY_PRICE} ₽`}
+                />
+            )}
+
+
 
             <Button
                 loading={loading}
                 type="submit"
                 className="w-full h-14 rounded-2xl mt-6 text-base font-bold">
-                Заказать
+                Оформить заказ
                 <ArrowRight className="w-5 ml-2" />
             </Button>
         </>

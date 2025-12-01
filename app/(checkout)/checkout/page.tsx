@@ -8,11 +8,10 @@ import {
     CheckoutSidebar,
     Container,
     Title,
-    CheckoutAddressForm,
     CheckoutCart,
     CheckoutPersonalForm,
     CheckoutSelectReceipt,
-} from '@/shared/components';
+} from '@/shared/components'; // Убираем CheckoutAddressForm
 import { CheckoutFormValues, checkoutFormSchema } from '@/shared/constants';
 import { useCart } from '@/shared/hooks';
 import { createOrder } from '@/app/actions';
@@ -26,7 +25,7 @@ import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
     const [submitting, setSubmitting] = React.useState(false);
-    const [deliveryType, setDeliveryType] = React.useState<'delivery' | 'pickup'>('delivery');
+    const [deliveryType, setDeliveryType] = React.useState<'delivery' | 'pickup'>('pickup');
     const [paymentMethod, setPaymentMethod] = React.useState<'cash' | 'online'>('cash');
 
     const { totalAmount, updateItemQuantity, items, removeCartItem, loading } = useCart();
@@ -37,14 +36,12 @@ export default function CheckoutPage() {
     const form = useForm<CheckoutFormValues>({
         resolver: zodResolver(checkoutFormSchema),
         defaultValues: {
-            //email: '',
             firstName: '',
-            //lastName: '',
             phone: '',
-            address: '',
+            address: '', // Теперь address в CheckoutSelectReceipt
             comment: '',
             city: selectedCity,
-            deliveryType: 'delivery',
+            deliveryType: 'pickup',
             paymentMethod: 'cash',
         },
     });
@@ -73,11 +70,10 @@ export default function CheckoutPage() {
     const fetchUserInfo = React.useCallback(async () => {
         try {
             const data = await Api.auth.getMe();
-            const [firstName, lastName] = data.fullName.split(' ');
+            const [firstName] = data.fullName.split(' ');
 
             form.setValue('firstName', firstName || '');
-            //form.setValue('lastName', lastName || '');
-            //form.setValue('email', data.email || '');
+            form.setValue('phone', data.phone || '');
             form.setValue('city', selectedCity);
             form.setValue('deliveryType', deliveryType);
             form.setValue('paymentMethod', paymentMethod);
@@ -100,7 +96,7 @@ export default function CheckoutPage() {
 
             const result = await createOrder(data);
 
-            toast.success(`Заказ #${result.orderId} успешно оформлен для города ${selectedCity}!`, {
+            toast.success(`Заказ #${result.orderId} успешно оформлен!`, {
                 duration: 3000,
                 position: 'bottom-center',
             });
@@ -127,14 +123,6 @@ export default function CheckoutPage() {
 
     const isFormDisabled = loading || submitting || !isInitialized;
 
-    // Отслеживаем изменения формы для отладки
-    React.useEffect(() => {
-        const subscription = form.watch((value) => {
-            console.log('Текущие значения формы:', value);
-        });
-        return () => subscription.unsubscribe();
-    }, [form]);
-
     if (!isInitialized) {
         return (
             <Container className="mt-4 sm:mt-6 lg:mt-8 pb-20 sm:pb-24">
@@ -143,7 +131,6 @@ export default function CheckoutPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-4">
                             <div className="h-64 bg-black rounded"></div>
-                            <div className="h-32 bg-black rounded"></div>
                             <div className="h-32 bg-black rounded"></div>
                         </div>
                         <div className="h-48 bg-black rounded"></div>
@@ -159,10 +146,6 @@ export default function CheckoutPage() {
                 text="Оформление заказа"
                 className="font-extrabold mb-4 sm:mb-6 lg:mb-8 text-xl sm:text-2xl lg:text-3xl text-center lg:text-left"
             />
-
-            {/* Скрытые поля для deliveryType и paymentMethod */}
-            <input type="hidden" {...form.register('deliveryType')} />
-            <input type="hidden" {...form.register('paymentMethod')} />
 
             <FormProvider {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -189,13 +172,6 @@ export default function CheckoutPage() {
                                     isFormDisabled && 'opacity-50 pointer-events-none'
                                 )}
                             />
-
-                            <CheckoutAddressForm
-                                className={cn(
-                                    'transition-opacity duration-200',
-                                    isFormDisabled && 'opacity-50 pointer-events-none'
-                                )}
-                            />
                         </div>
 
                         {/* Правая часть - сайдбар */}
@@ -204,6 +180,7 @@ export default function CheckoutPage() {
                                 totalAmount={totalAmount}
                                 loading={isFormDisabled}
                                 selectedCity={selectedCity}
+                                deliveryType={deliveryType}
                                 className="sticky top-4"
                             />
                         </div>

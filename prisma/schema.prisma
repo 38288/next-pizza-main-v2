@@ -65,6 +65,7 @@ model User {
 
   fullName String
   email    String?   @unique
+  phone    String // Убираем ? - делаем обязательным
   password String
   role     UserRole  @default(USER)
   verified DateTime?
@@ -134,7 +135,7 @@ model Order {
   address  String
   comment  String?
 
-  deliveryType  String @default("delivery")
+  deliveryType  String @default("pickup")
   paymentMethod String @default("cash")
 
   createdAt DateTime @default(now())
