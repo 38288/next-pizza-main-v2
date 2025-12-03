@@ -9,9 +9,8 @@ import {
     Container,
     Title,
     CheckoutCart,
-    CheckoutPersonalForm,
     CheckoutSelectReceipt,
-} from '@/shared/components'; // Убираем CheckoutAddressForm
+} from '@/shared/components';
 import { CheckoutFormValues, checkoutFormSchema } from '@/shared/constants';
 import { useCart } from '@/shared/hooks';
 import { createOrder } from '@/app/actions';
@@ -19,7 +18,6 @@ import toast from 'react-hot-toast';
 import React from 'react';
 import { useSession } from 'next-auth/react';
 import { Api } from '@/shared/services/api-client';
-import { cn } from '@/shared/lib/utils';
 import { useCity } from '@/shared/hooks/use-city';
 import { useRouter } from "next/navigation";
 
@@ -38,7 +36,7 @@ export default function CheckoutPage() {
         defaultValues: {
             firstName: '',
             phone: '',
-            address: '', // Теперь address в CheckoutSelectReceipt
+            address: '',
             comment: '',
             city: selectedCity,
             deliveryType: 'pickup',
@@ -152,13 +150,6 @@ export default function CheckoutPage() {
                     <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 lg:gap-8">
                         {/* Левая часть - формы */}
                         <div className="flex flex-col gap-4 sm:gap-6 lg:gap-8 flex-1">
-                            <CheckoutSelectReceipt
-                                deliveryType={deliveryType}
-                                setDeliveryType={setDeliveryType}
-                                paymentMethod={paymentMethod}
-                                setPaymentMethod={setPaymentMethod}
-                            />
-
                             <CheckoutCart
                                 onClickCountButton={onClickCountButton}
                                 removeCartItem={removeCartItem}
@@ -166,16 +157,16 @@ export default function CheckoutPage() {
                                 loading={loading}
                             />
 
-                            <CheckoutPersonalForm
-                                className={cn(
-                                    'transition-opacity duration-200',
-                                    isFormDisabled && 'opacity-50 pointer-events-none'
-                                )}
+                            <CheckoutSelectReceipt
+                                deliveryType={deliveryType}
+                                setDeliveryType={setDeliveryType}
+                                paymentMethod={paymentMethod}
+                                setPaymentMethod={setPaymentMethod}
                             />
                         </div>
 
                         {/* Правая часть - сайдбар */}
-                        <div className="w-full xl:w-[400px] 2xl:w-[450px] order-first xl:order-last">
+                        <div className="w-full xl:w-[400px] 2xl:w-[450px] order-last xl:order-last">
                             <CheckoutSidebar
                                 totalAmount={totalAmount}
                                 loading={isFormDisabled}

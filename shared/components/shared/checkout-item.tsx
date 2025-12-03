@@ -42,9 +42,9 @@ export const CheckoutItem: React.FC<Props> = ({
 
                     {/* Цена на мобильных - под информацией */}
                     <div className="flex items-center justify-between mt-2 sm:hidden">
-                        <CartItemDetails.Price value={price * quantity} className="text-base font-bold text-white" />
+                        <CartItemDetails.Price value={price} className="text-base font-bold text-white" />
                         <span className="text-sm text-gray-400">
-                            {price} ₽ × {quantity}
+                            {price} ₽
                         </span>
                     </div>
                 </div>
