@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 
 export const useCity = () => {
-    const [selectedCity, setSelectedCity] = useState<string>('Екатеринбург');
+    const [selectedCity, setSelectedCity] = useState<string>('Верхняя Салда, Парковая');
     const [isInitialized, setIsInitialized] = useState(false);
 
     // Инициализация из localStorage при монтировании
