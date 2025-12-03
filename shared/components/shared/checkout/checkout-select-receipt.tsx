@@ -61,7 +61,7 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                 </div>
             </div>
 
-            {/* 2. Выбор типа получения заказа */}
+            {/* 2. Выберите способ получения */}
             <div className="mb-6">
                 <div className="flex items-center gap-2 mb-4">
                     <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
@@ -145,17 +145,6 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
                             Укажите подробный адрес для доставки заказа
-                        </p>
-                    </div>
-                )}
-
-                {/* Информация об адресе для самовывоза */}
-                {deliveryType === 'pickup' && (
-                    <div className="mt-4 p-3 border border-border rounded-lg bg-card">
-                        <p className="text-sm font-medium text-foreground">Адрес самовывоза:</p>
-                        <p className="text-sm text-foreground">{selectedCity}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Приходите за заказом по этому адресу
                         </p>
                     </div>
                 )}
@@ -248,14 +237,10 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                 <div className="mt-2">
                     <textarea
                         {...register('comment')}
-                        placeholder="Например: позвонить за 10 минут, этаж, код домофона, особые пожелания..."
-                        rows={4}
+                        rows={2}
                         className="w-full px-4 py-3 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-colors resize-none bg-background text-foreground"
                     />
-                    <div className="flex items-center gap-2 mt-2 text-muted-foreground">
-                        <MessageSquare size={16} />
-                        <p className="text-xs">Дополнительная информация для курьера или повара</p>
-                    </div>
+
                 </div>
             </div>
         </WhiteBlock>
