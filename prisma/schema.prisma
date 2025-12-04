@@ -7,6 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id Int @id @default(autoincrement())
+
+  fullName String
+  email    String?   @unique
+  phone    String
+  password String
+  role     UserRole  @default(USER)
+  verified DateTime?
+
+  provider   String?
+  providerId String?
+
+  cart             Cart?
+  orders           Order[]
+  verificationCode VerificationCode?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Category {
   id Int @id @default(autoincrement())
 
@@ -22,6 +43,7 @@ model Product {
 
   name     String
   imageUrl String
+  sku      String? // Добавили поле SKU
 
   ingredients Ingredient[]
   items       ProductItem[]
@@ -39,6 +61,7 @@ model ProductItem {
   price     Int
   size      Int?
   pizzaType Int?
+  sku       String? // Добавили поле SKU
 
   cartItems CartItem[]
 
@@ -52,30 +75,10 @@ model Ingredient {
   name     String
   price    Int
   imageUrl String
+  sku      String? // Добавили поле SKU
 
   products  Product[]
   cartItems CartItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model User {
-  id Int @id @default(autoincrement())
-
-  fullName String
-  email    String?   @unique
-  phone    String // Убираем ? - делаем обязательным
-  password String
-  role     UserRole  @default(USER)
-  verified DateTime?
-
-  provider   String?
-  providerId String?
-
-  cart             Cart?
-  orders           Order[]
-  verificationCode VerificationCode?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,4 +187,18 @@ enum OrderStatus {
 enum UserRole {
   USER
   ADMIN
+}
+
+model StopList {
+  id Int @id @default(autoincrement())
+
+  organizationId  String
+  terminalGroupId String
+  productId       String
+  sku             String
+  balance         Float
+  dateAdd         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
