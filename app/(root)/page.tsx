@@ -7,6 +7,8 @@ import {
 import { GetSearchParams, findPizzas } from '@/shared/lib/find-pizzas';
 import { prisma } from '@/prisma/prisma-client';
 import { cookies } from 'next/headers';
+import { getOrganizations } from '@/shared/lib/get-organizations';
+import { ScrollToTopButton } from '@/shared/components/shared/scroll-to-top-button'; // Импортируем
 
 export default async function Home({ searchParams }: { searchParams: GetSearchParams }) {
     const city = searchParams.city;
@@ -14,11 +16,7 @@ export default async function Home({ searchParams }: { searchParams: GetSearchPa
     const savedCity = cookieStore.get('selectedCity')?.value;
     const currentCity = city || savedCity || '';
 
-    const citiesData = [
-        { id: "5a5963df-4e9a-45d2-aa7b-2e2a1a5e704d", name: "Гикалова", code: "3" },
-        { id: "8740e9b6-ff6e-481e-b694-dc020cdf7bc4", name: "Парковая", code: "2" },
-        { id: "8e57e25d-8c9c-486d-b41d-ac96a2c1f4cc", name: "Сибирский тракт", code: "1" }
-    ];
+    const organizations = await getOrganizations();
 
     if (!currentCity) {
         return (
@@ -29,13 +27,13 @@ export default async function Home({ searchParams }: { searchParams: GetSearchPa
                             Добро пожаловать в Мясной Цех!
                         </h2>
                         <p className="text-gray-400 mb-6">
-                            Пожалуйста, выберите город доставки, чтобы увидеть доступные товары в вашем филиале
+                            Пожалуйста, выберите филиал доставки
                         </p>
                         <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                             <p className="text-sm text-gray-300 mb-2">🏪 Доступные филиалы:</p>
                             <ul className="text-sm text-gray-400 space-y-1">
-                                {citiesData.map(city => (
-                                    <li key={city.id}>• {city.name} (код: {city.code})</li>
+                                {organizations.map(org => (
+                                    <li key={org.externalId}>• {org.name} (код: {org.code})</li>
                                 ))}
                             </ul>
                         </div>
@@ -51,18 +49,17 @@ export default async function Home({ searchParams }: { searchParams: GetSearchPa
     });
 
     const categories = await findPizzas({ ...searchParams, city: currentCity }, stopList);
-    console.log('1');
-    //console.log(categories[5]);
+
     if (categories.length === 0) {
         return (
             <Container className="mt-6 sm:mt-8 md:mt-10 pb-8 sm:pb-10 md:pb-14">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
                     <div className="max-w-md">
                         <h3 className="text-xl md:text-2xl font-bold mb-3 text-white">
-                            В выбранном городе временно нет доступных товаров
+                            В выбранном филиале временно нет товаров
                         </h3>
                         <p className="text-gray-400 mb-6">
-                            Возможно, все товары временно отсутствуют. Попробуйте выбрать другой филиал или проверьте позже.
+                            Попробуйте выбрать другой филиал или проверьте позже.
                         </p>
                         <div className="flex gap-3 justify-center">
                             <a
@@ -97,6 +94,9 @@ export default async function Home({ searchParams }: { searchParams: GetSearchPa
                     </div>
                 </div>
             </Container>
+
+            {/* Кнопка "Наверх" - КЛИЕНТСКИЙ КОМПОНЕНТ */}
+            <ScrollToTopButton />
         </>
     );
 }

@@ -56,25 +56,39 @@ export async function createOrder(data: CheckoutFormValues & { cityName?: string
             throw new Error('Cart is empty');
         }
 
-        // 3. Получаем название города
-        let cityName = data.cityName || undefined;
-        if (!cityName) {
-            const city = await getCityNameById(data.city);
-            cityName = city || undefined;
+        // 3. Получаем название организации из БД
+        let organizationName = data.cityName || '';
+        if (!organizationName) {
+            // Пробуем получить организацию из БД
+            try {
+                const organization = await prisma.organization.findUnique({
+                    where: { externalId: data.city }
+                });
+                organizationName = organization?.name || data.city;
+            } catch (error) {
+                console.log('⚠️ Не удалось получить организацию из БД, используем fallback');
+                // Fallback на локальные данные
+                const organizations = [
+                    { externalId: "5a5963df-4e9a-45d2-aa7b-2e2a1a5e704d", name: "Гикалова", code: "3" },
+                    { externalId: "8740e9b6-ff6e-481e-b694-dc020cdf7bc4", name: "Парковая", code: "2" },
+                    { externalId: "8e57e25d-8c9c-486d-b41d-ac96a2c1f4cc", name: "Сибирский тракт", code: "1" }
+                ];
+
+                const org = organizations.find(o => o.externalId === data.city);
+                organizationName = org ? org.name : data.city;
+            }
         }
 
-        console.log('🏙️ Название города:', cityName || 'Не указано');
+        console.log('🏙️ Название организации:', organizationName);
 
-        // 4. Создаем заказ
-        // В функции createOrder обновите создание заказа:
+        // 4. Создаем заказ (БЕЗ поля cityName)
         const orderData = {
             token: cartToken,
             fullName: data.firstName,
             email: null,
             phone: data.phone,
             address: data.address || '',
-            city: data.city,
-            cityName: cityName || null, // Используем новое поле
+            city: data.city, // externalId организации
             comment: data.comment || null,
             deliveryType: data.deliveryType,
             paymentMethod: data.paymentMethod,
@@ -83,11 +97,44 @@ export async function createOrder(data: CheckoutFormValues & { cityName?: string
             items: JSON.stringify(userCart.items),
         };
 
-        const order = await prisma.order.create({
-            data: orderData,
-        });
+        console.log('📝 Данные для создания заказа:', orderData);
 
-        console.log('✅ Заказ создан в БД, ID:', order.id);
+        let order;
+        try {
+            order = await prisma.order.create({
+                data: orderData,
+            });
+            console.log('✅ Заказ создан в БД, ID:', order.id);
+        } catch (error) {
+            console.error('❌ Ошибка при создании заказа в БД:', error);
+
+            // Если ошибка из-за несуществующего поля, пробуем без него
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('cityName') || errorMessage.includes('does not exist')) {
+                console.log('⚠️ Пытаемся создать заказ без проблемных полей...');
+
+                // Убираем все необязательные поля которые могут вызвать ошибку
+                const fallbackOrderData = {
+                    token: cartToken,
+                    fullName: data.firstName,
+                    phone: data.phone,
+                    address: data.address || '',
+                    city: data.city,
+                    deliveryType: data.deliveryType,
+                    paymentMethod: data.paymentMethod,
+                    totalAmount: userCart.totalAmount,
+                    status: OrderStatus.SUCCEEDED,
+                    items: JSON.stringify(userCart.items),
+                };
+
+                order = await prisma.order.create({
+                    data: fallbackOrderData as any,
+                });
+                console.log('✅ Заказ создан (упрощенная версия), ID:', order.id);
+            } else {
+                throw error;
+            }
+        }
 
         // 5. Очищаем корзину
         console.log('🧹 Очистка корзины...');
@@ -110,17 +157,17 @@ export async function createOrder(data: CheckoutFormValues & { cityName?: string
 
         // 6. Отправляем в Telegram
         console.log('📤 Отправка уведомления в Telegram...');
-        await sendOrderToTelegram(order, userCart.items, data, cityName || '', sendTelegram);
+        await sendOrderToTelegram(order!, userCart.items, data, organizationName, sendTelegram);
 
         console.log('🎉 ========== ЗАКАЗ УСПЕШНО ОФОРМЛЕН ==========');
-        console.log(`📋 Номер заказа: #${order.id}`);
-        console.log(`🏙️ Город: ${cityName || data.city}`);
+        console.log(`📋 Номер заказа: #${order!.id}`);
+        console.log(`🏙️ Организация: ${organizationName}`);
         console.log(`🚚 Тип: ${data.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}`);
         console.log(`💳 Оплата: ${data.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}`);
-        console.log(`💰 Сумма: ${order.totalAmount} ₽`);
+        console.log(`💰 Сумма: ${order!.totalAmount} ₽`);
 
         return {
-            orderId: order.id,
+            orderId: order!.id,
             success: true,
             redirectUrl: '/'
         };
@@ -128,24 +175,10 @@ export async function createOrder(data: CheckoutFormValues & { cityName?: string
     } catch (err) {
         console.error('❌ ========== ОШИБКА ПРИ СОЗДАНИИ ЗАКАЗА ==========');
         console.error('Error details:', err);
+        if (err instanceof Error) {
+            console.error('Error stack:', err.stack);
+        }
         throw err;
-    }
-}
-
-// Вспомогательная функция для получения названия города по ID
-async function getCityNameById(cityId: string): Promise<string | null> {
-    try {
-        const cities = [
-            { id: "5a5963df-4e9a-45d2-aa7b-2e2a1a5e704d", name: "Гикалова", code: "3" },
-            { id: "8740e9b6-ff6e-481e-b694-dc020cdf7bc4", name: "Парковая", code: "2" },
-            { id: "8e57e25d-8c9c-486d-b41d-ac96a2c1f4cc", name: "Сибирский тракт", code: "1" }
-        ];
-
-        const city = cities.find(c => c.id === cityId);
-        return city ? city.name : null;
-    } catch (error) {
-        console.error('Ошибка при получении названия города:', error);
-        return null;
     }
 }
 
@@ -154,7 +187,7 @@ async function sendOrderToTelegram(
     order: any,
     cartItems: any[],
     formData: CheckoutFormValues,
-    cityName: string, // Теперь строка, не может быть null/undefined
+    organizationName: string,
     sendTelegramFunction: (message: string) => Promise<any>
 ) {
     try {
@@ -202,7 +235,7 @@ async function sendOrderToTelegram(
 
 👤 <b>КЛИЕНТ:</b> ${formData.firstName}
 📞 <b>ТЕЛЕФОН:</b> <code>${formData.phone}</code>
-🏙️ <b>ФИЛИАЛ:</b> ${cityName || 'Не указан'}
+🏙️ <b>ФИЛИАЛ:</b> ${organizationName || 'Не указан'}
 
 ${deliveryText}${paymentText}${commentText}
 🛒 <b>СОСТАВ ЗАКАЗА:</b>
@@ -212,7 +245,7 @@ ${itemsText}
 ⏰ <b>ВРЕМЯ:</b> ${new Date().toLocaleString('ru-RU')}
 ----------------------------
 <b>ID заказа:</b> ${order.id}
-<b>ID города:</b> ${formData.city}
+<b>ID организации:</b> ${formData.city}
 <b>Тип:</b> ${formData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}
 <b>Оплата:</b> ${formData.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}
         `.trim();

@@ -1,4 +1,5 @@
 // app/(checkout)/checkout/page.tsx
+// app/(checkout)/checkout/page.tsx
 'use client';
 
 import { FormProvider, useForm } from 'react-hook-form';
@@ -28,15 +29,15 @@ export default function CheckoutPage() {
 
     const { totalAmount, updateItemQuantity, items, removeCartItem, loading } = useCart();
     const { data: session } = useSession();
-    const { selectedCity: cityId, cities } = useCityStore();
+    const { selectedCity: orgId, organizations } = useCityStore(); // Изменено: organizations вместо cities
     const router = useRouter();
 
-    // Получаем название города для формы
-    const currentCityName = React.useMemo(() => {
-        if (!cityId) return '';
-        const city = cities.find(c => c.id === cityId);
-        return city ? city.name : '';
-    }, [cityId, cities]);
+    // Получаем название организации для формы
+    const currentOrganizationName = React.useMemo(() => {
+        if (!orgId) return '';
+        const organization = organizations.find(org => org.externalId === orgId); // Поиск по externalId
+        return organization ? organization.name : '';
+    }, [orgId, organizations]);
 
     const form = useForm<CheckoutFormValues>({
         resolver: zodResolver(checkoutFormSchema),
@@ -45,18 +46,18 @@ export default function CheckoutPage() {
             phone: '',
             address: '',
             comment: '',
-            city: cityId || '',
+            city: orgId || '', // externalId организации
             deliveryType: 'pickup',
             paymentMethod: 'cash',
         },
     });
 
-    // Обновляем значение города при изменении
+    // Обновляем значение города (externalId организации) при изменении
     React.useEffect(() => {
-        if (cityId) {
-            form.setValue('city', cityId, { shouldValidate: true });
+        if (orgId) {
+            form.setValue('city', orgId, { shouldValidate: true });
         }
-    }, [cityId, form]);
+    }, [orgId, form]);
 
     // Синхронизируем локальные состояния с формой
     React.useEffect(() => {
@@ -77,7 +78,6 @@ export default function CheckoutPage() {
             form.setValue('firstName', firstName || '');
             form.setValue('phone', data.phone || '');
 
-            // Город из стора уже установлен в useEffect выше
         } catch (error) {
             console.error('Ошибка загрузки данных пользователя:', error);
         }
@@ -89,18 +89,17 @@ export default function CheckoutPage() {
         }
     }, [session, fetchUserInfo]);
 
-    // В функции onSubmit обновите передачу данных
     const onSubmit = async (data: CheckoutFormValues) => {
         try {
             setSubmitting(true);
 
-            // Получаем полное название города
-            const cityName = currentCityName || '';
+            // Получаем полное название организации
+            const organizationName = currentOrganizationName || '';
 
             // Подготовка данных для отправки
             const orderData = {
                 ...data,
-                cityName: cityName // Добавляем название города
+                cityName: organizationName // Добавляем название организации
             };
 
             console.log('📦 Отправка данных заказа:', orderData);
@@ -133,21 +132,22 @@ export default function CheckoutPage() {
         updateItemQuantity(id, newQuantity);
     };
 
-    const isFormDisabled = loading || submitting || !cityId;
+    const isFormDisabled = loading || submitting || !orgId;
 
-    if (!cityId) {
+    // Если организация не выбрана
+    if (!orgId) {
         return (
             <Container className="mt-4 sm:mt-6 lg:mt-8 pb-20 sm:pb-24">
                 <div className="text-center py-12">
-                    <h2 className="text-2xl font-bold text-white mb-4">Город не выбран</h2>
+                    <h2 className="text-2xl font-bold text-white mb-4">Филиал не выбран</h2>
                     <p className="text-gray-400 mb-6 max-w-md mx-auto">
-                        Для оформления заказа необходимо выбрать город доставки
+                        Для оформления заказа необходимо выбрать филиал
                     </p>
                     <button
                         onClick={() => router.push('/')}
                         className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                     >
-                        Выбрать город
+                        Выбрать филиал
                     </button>
                 </div>
             </Container>
@@ -186,7 +186,7 @@ export default function CheckoutPage() {
                             <CheckoutSidebar
                                 totalAmount={totalAmount}
                                 loading={isFormDisabled}
-                                selectedCity={currentCityName}
+                                selectedCity={currentOrganizationName}
                                 deliveryType={deliveryType}
                                 className="sticky top-4"
                             />

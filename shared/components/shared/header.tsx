@@ -1,3 +1,4 @@
+// shared/components/shared/header.tsx
 'use client';
 
 import { cn } from '@/shared/lib/utils';
@@ -19,7 +20,12 @@ interface Props {
     hasCart?: boolean;
     className?: string;
     currentCity?: string;
-    cities?: Array<{ id: string; name: string; code: string }>;
+    organizations?: Array<{
+        id: string;
+        externalId: string;
+        name: string;
+        code: string | null;
+    }>;
     showCityModal?: boolean;
 }
 
@@ -27,160 +33,118 @@ export const Header: React.FC<Props> = ({
                                             hasCart = true,
                                             className,
                                             currentCity: serverCurrentCity,
-                                            cities: serverCities = [],
+                                            organizations: serverOrganizations = [],
                                             showCityModal = false,
                                         }) => {
     const router = useRouter();
     const [openAuthModal, setOpenAuthModal] = useState(false);
     const [openCityModal, setOpenCityModal] = useState(showCityModal);
-    const [isInitializing, setIsInitializing] = useState(true);
 
-    const { selectedCity, cities: storeCities, setSelectedCity, setCities } = useCityStore();
+    const { selectedCity, organizations: storeOrganizations, setSelectedCity, setOrganizations } = useCityStore();
 
     const searchParams = useSearchParams();
 
-    // Инициализация при монтировании
+    // Инициализация организаций
     useEffect(() => {
-        const initializeCity = async () => {
-            setIsInitializing(true);
+        if (serverOrganizations.length > 0 && storeOrganizations.length === 0) {
+            setOrganizations(serverOrganizations);
+        }
+    }, [serverOrganizations, storeOrganizations.length, setOrganizations]);
 
-            // 1. Сохраняем города в стор
-            if (serverCities.length > 0 && storeCities.length === 0) {
-                setCities(serverCities);
-            }
-
-            // 2. Проверяем localStorage для быстрого отображения
-            if (typeof window !== 'undefined') {
-                const savedCity = localStorage.getItem('selectedCity');
-                if (savedCity && savedCity !== selectedCity) {
-                    setSelectedCity(savedCity);
-                }
-            }
-
-            // 3. Синхронизируем серверный город с клиентским состоянием
-            if (serverCurrentCity && serverCurrentCity !== selectedCity) {
-                setSelectedCity(serverCurrentCity);
-
-                // Сохраняем в localStorage для консистентности
-                if (typeof window !== 'undefined') {
-                    localStorage.setItem('selectedCity', serverCurrentCity);
-                }
-            }
-
-            setIsInitializing(false);
-        };
-
-        initializeCity();
-    }, [serverCurrentCity, serverCities, storeCities.length, setCities, setSelectedCity]);
-
-    // Показываем модальное окно при первом заходе (нет города)
+    // Показываем модальное окно при первом заходе
     useEffect(() => {
-        if (!isInitializing && !selectedCity && !serverCurrentCity && serverCities.length > 0) {
+        if (!selectedCity && !serverCurrentCity && serverOrganizations.length > 0) {
             setOpenCityModal(true);
         }
-    }, [isInitializing, selectedCity, serverCurrentCity, serverCities]);
+    }, [selectedCity, serverCurrentCity, serverOrganizations]);
 
     // Обработка toast-уведомлений
     useEffect(() => {
-        let toastMessage = '';
-
         if (searchParams.has('paid')) {
-            toastMessage = 'Заказ успешно оплачен! Информация отправлена на почту.';
-        }
-
-        if (searchParams.has('verified')) {
-            toastMessage = 'Почта успешно подтверждена!';
-        }
-
-        if (toastMessage) {
             setTimeout(() => {
                 router.replace('/');
-                toast.success(toastMessage, {
+                toast.success('Заказ успешно оплачен! Информация отправлена на почту.', {
                     duration: 3000,
                 });
             }, 1000);
         }
     }, [searchParams, router]);
 
-    const handleCitySelect = async (cityId: string) => {
+    const handleCitySelect = async (orgId: string) => {
         try {
-            // Сохраняем в стор
-            setSelectedCity(cityId);
+            setSelectedCity(orgId);
 
             // Сохраняем в cookies через API
             const response = await fetch('/api/city', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cityId }),
+                body: JSON.stringify({ cityId: orgId }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to save city to cookies');
+                throw new Error('Failed to save city');
             }
 
-            // Сохраняем в localStorage для клиентского доступа
+            // Сохраняем в localStorage
             if (typeof window !== 'undefined') {
-                localStorage.setItem('selectedCity', cityId);
+                localStorage.setItem('selectedCity', orgId);
             }
 
             setOpenCityModal(false);
 
-            // Обновляем URL с параметром города
+            // Обновляем URL
             const params = new URLSearchParams(searchParams.toString());
-            params.set('city', cityId);
-
-            // Обновляем страницу
+            params.set('city', orgId);
             router.push(`/?${params.toString()}`);
             router.refresh();
 
-            toast.success('Город успешно выбран!');
+            toast.success('Филиал успешно выбран!');
 
         } catch (error) {
             console.error('Failed to save city:', error);
-            toast.error('Не удалось сохранить город. Попробуйте снова.');
-
-            // В случае ошибки всё равно закрываем модалку, но показываем ошибку
+            toast.error('Не удалось сохранить филиал');
             setOpenCityModal(false);
         }
     };
 
     const handleCityModalClose = () => {
-        // Закрываем только если не в forced режиме
         if (selectedCity || serverCurrentCity) {
             setOpenCityModal(false);
         }
     };
 
-    // Получаем уникальные города без дубликатов
-    const uniqueCities = useMemo(() => {
-        // Объединяем города, отдавая приоритет серверным
-        const allCities = [...serverCities, ...storeCities];
-
-        // Используем Map для гарантированной уникальности по id
-        const cityMap = new Map();
-        allCities.forEach(city => {
-            if (!cityMap.has(city.id)) {
-                cityMap.set(city.id, city);
+    // Получаем уникальные организации
+    const uniqueOrganizations = useMemo(() => {
+        const allOrganizations = [...serverOrganizations, ...storeOrganizations];
+        const orgMap = new Map();
+        allOrganizations.forEach(org => {
+            if (!orgMap.has(org.externalId)) {
+                orgMap.set(org.externalId, org);
             }
         });
+        return Array.from(orgMap.values());
+    }, [storeOrganizations, serverOrganizations]);
 
-        return Array.from(cityMap.values());
-    }, [storeCities, serverCities]);
+    // Получаем название текущей организации
+    const getCurrentOrganizationName = () => {
+        const orgId = selectedCity || serverCurrentCity;
+        if (!orgId) return 'Выберите филиал';
 
-    // Получаем отображаемое название города
-    const getCurrentCityName = () => {
-        if (isInitializing) return 'Загрузка...';
+        const organization = serverOrganizations.find(o => o.externalId === orgId)
+            || storeOrganizations.find(o => o.externalId === orgId)
+            || uniqueOrganizations.find(o => o.externalId === orgId);
 
-        const cityId = selectedCity || serverCurrentCity;
-        if (!cityId) return 'Выберите город';
-
-        // Ищем в приоритетном порядке
-        const city = serverCities.find(c => c.id === cityId)
-            || storeCities.find(c => c.id === cityId)
-            || uniqueCities.find(c => c.id === cityId);
-
-        return city?.name || 'Город не найден';
+        return organization?.name || 'Филиал не найден';
     };
+
+    // Форматируем для CityModal
+    const organizationsForModal = useMemo(() => {
+        return uniqueOrganizations.map(org => ({
+            id: org.externalId,
+            name: org.name,
+            code: org.code || ''
+        }));
+    }, [uniqueOrganizations]);
 
     return (
         <>
@@ -213,24 +177,25 @@ export const Header: React.FC<Props> = ({
                         </div>
                     </Link>
 
-                    {/* Кнопка выбора города */}
+                    {/* Кнопка выбора филиала */}
                     <div className="flex-1 max-w-xs mx-4">
                         <Button
                             variant="ghost"
                             className="w-full justify-start text-white hover:text-orange-400 hover:bg-gray-800 border border-gray-700 hover:border-orange-500 transition-colors"
                             onClick={() => setOpenCityModal(true)}
-                            aria-label="Выбрать город"
-                            disabled={isInitializing}
+                            aria-label="Выбрать филиал"
                         >
                             <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                            <span className="truncate font-medium">{getCurrentCityName()}</span>
+                            <span className="truncate font-medium">
+                                {getCurrentOrganizationName()}
+                            </span>
                             <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
                         </Button>
                     </div>
 
                     {/* Кнопки профиля и корзины */}
                     <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                        <ProfileButton onAuthClick={() => setOpenAuthModal(true)} />
+                        {/*<ProfileButton onAuthClick={() => setOpenAuthModal(true)} />*/}
                         {hasCart && <CartButton />}
                     </div>
                 </Container>
@@ -243,7 +208,7 @@ export const Header: React.FC<Props> = ({
                 isOpen={openCityModal}
                 onClose={handleCityModalClose}
                 onCitySelect={handleCitySelect}
-                cities={uniqueCities}
+                cities={organizationsForModal}
                 currentCity={selectedCity || serverCurrentCity}
                 isForced={!selectedCity && !serverCurrentCity}
             />

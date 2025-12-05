@@ -186,9 +186,7 @@ export const CityModal: React.FC<CityModalProps> = ({
                                         )}>
                                             {city.name}
                                         </span>
-                                        <span className="text-sm text-gray-400">
-                                            Код филиала: <span className="font-mono">{city.code}</span>
-                                        </span>
+
                                     </div>
                                 </Label>
                             </div>
@@ -197,16 +195,7 @@ export const CityModal: React.FC<CityModalProps> = ({
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-700/50">
-                    {!isForced && (
-                        <Button
-                            variant="outline"
-                            onClick={handleClose}
-                            disabled={isLoading}
-                            className="flex-1 border-gray-600 hover:bg-gray-800 hover:border-gray-500"
-                        >
-                            Позже
-                        </Button>
-                    )}
+
                     <Button
                         onClick={handleSubmit}
                         disabled={!tempSelectedCity || isLoading}

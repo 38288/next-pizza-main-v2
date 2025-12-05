@@ -7,7 +7,7 @@ import { cn } from '@/shared/lib/utils';
 import { Truck, Store, Wallet, CreditCard } from 'lucide-react';
 import { useFormContext } from 'react-hook-form';
 import { FormInput } from '../form';
-import { useCityStore, City } from '@/shared/store/city';
+import { useCityStore } from '@/shared/store/city';
 
 interface Props {
     loading?: boolean;
@@ -18,8 +18,8 @@ interface Props {
     setPaymentMethod: (method: 'cash' | 'online') => void;
 }
 
-// ID города где доступна доставка (Парковая)
-const DELIVERY_AVAILABLE_CITY_ID = '8740e9b6-ff6e-481e-b694-dc020cdf7bc4';
+// externalId филиала где доступна доставка (Парковая)
+const DELIVERY_AVAILABLE_ORG_ID = '8740e9b6-ff6e-481e-b694-dc020cdf7bc4';
 
 export const CheckoutSelectReceipt: React.FC<Props> = ({
                                                            className,
@@ -28,30 +28,27 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                                                            paymentMethod = 'cash',
                                                            setPaymentMethod
                                                        }) => {
-    const { selectedCity: cityId, cities } = useCityStore();
+    const { selectedCity: orgId, organizations } = useCityStore();
     const { register, formState: { errors }, watch, trigger, setValue } = useFormContext();
 
-    // Получаем текущий город
-    const currentCity: City | undefined = React.useMemo(() => {
-        return cities.find(city => city.id === cityId);
-    }, [cityId, cities]);
+    // Получаем текущую организацию
+    const currentOrganization = React.useMemo(() => {
+        return organizations.find(org => org.externalId === orgId);
+    }, [orgId, organizations]);
 
     // Проверяем доступность доставки
-    const isDeliveryAvailable = cityId === DELIVERY_AVAILABLE_CITY_ID;
+    const isDeliveryAvailable = orgId === DELIVERY_AVAILABLE_ORG_ID;
 
     // Автоматически переключаем на самовывоз если доставка недоступна
     React.useEffect(() => {
         if (!isDeliveryAvailable && deliveryType === 'delivery') {
             setDeliveryType('pickup');
-            // Сбрасываем адрес при переключении на самовывоз
             setValue('address', '', { shouldValidate: false });
         }
     }, [isDeliveryAvailable, deliveryType, setDeliveryType, setValue]);
 
-    // Следим за полем адреса
     const addressValue = watch('address');
 
-    // Автоматически валидируем адрес при переключении типа доставки
     React.useEffect(() => {
         if (deliveryType === 'delivery') {
             trigger('address');
@@ -70,13 +67,11 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
         return `+7 (${numbers.slice(1, 4)}) ${numbers.slice(4, 7)}-${numbers.slice(7, 9)}-${numbers.slice(9, 11)}`;
     };
 
-    // Обработчик изменения телефона с маской
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target;
         const selectionStart = input.selectionStart;
         const formatted = formatPhone(input.value);
 
-        // Сохраняем позицию курсора
         const diff = formatted.length - input.value.length;
 
         input.value = formatted;
@@ -85,11 +80,9 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
             input.setSelectionRange(selectionStart + diff, selectionStart + diff);
         }
 
-        // Триггерим валидацию
         setValue('phone', formatted, { shouldValidate: true });
     };
 
-    // Валидация телефона при блуре
     const validatePhone = (e: React.FocusEvent<HTMLInputElement>) => {
         const phone = e.target.value.replace(/\D/g, '');
         if (phone && phone.length < 10) {
@@ -97,11 +90,10 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
         }
     };
 
-    // Проверка валидности адреса для доставки
     const isAddressValidForDelivery = deliveryType === 'delivery' && addressValue && addressValue.trim().length >= 5;
 
-    // Если город не выбран - показываем сообщение
-    if (!currentCity) {
+    // Если организация не выбрана
+    if (!currentOrganization) {
         return (
             <WhiteBlock
                 title="Выбор оплаты и доставки"
@@ -109,13 +101,13 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                 padding="md"
             >
                 <div className="text-center py-8">
-                    <p className="text-gray-400 mb-4">Пожалуйста, выберите город для оформления заказа</p>
+                    <p className="text-gray-400 mb-4">Пожалуйста, выберите филиал для оформления заказа</p>
                     <button
                         type="button"
                         onClick={() => window.location.href = '/'}
                         className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                     >
-                        Выбрать город
+                        Выбрать филиал
                     </button>
                 </div>
             </WhiteBlock>
@@ -128,20 +120,20 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
             className={className}
             padding="md"
         >
-            {/* 1. Показать выбранный город */}
+            {/* 1. Показать выбранный филиал */}
             <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center">
                         <span className="text-sm font-bold text-white">1</span>
                     </div>
-                    <h3 className="text-lg font-semibold text-white">Город доставки</h3>
+                    <h3 className="text-lg font-semibold text-white">Филиал</h3>
                 </div>
                 <div className="p-4 border border-gray-700 rounded-lg bg-gray-800">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-gray-400 mb-1">Выбранный филиал:</p>
                             <p className="text-xl font-bold text-white mt-1">
-                                {currentCity.name} (код: {currentCity.code})
+                                {currentOrganization.name} {currentOrganization.code && `(код: ${currentOrganization.code})`}
                             </p>
                         </div>
                         {!isDeliveryAvailable && (
@@ -195,7 +187,6 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                                 onBlur={validatePhone}
                                 className={cn(
                                     "w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors bg-gray-700 text-white placeholder:text-gray-500",
-                                    "peer",
                                     errors.phone?.message
                                         ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                                         : "border-gray-600"
@@ -250,7 +241,7 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                             Заберете заказ по адресу филиала
                         </p>
                         <p className="text-xs text-green-400 mt-2 font-medium">
-                            {currentCity.name}
+                            {currentOrganization.name}
                         </p>
                     </button>
 
@@ -291,7 +282,7 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                         </p>
                         {isDeliveryAvailable ? (
                             <p className="text-xs text-green-400 mt-2 font-medium">
-                                ✓ Доступно для {currentCity.name}
+                                ✓ Доступно для {currentOrganization.name}
                             </p>
                         ) : (
                             <p className="text-xs text-red-400 mt-2">
@@ -310,7 +301,7 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                         <input
                             {...register('address')}
                             type="text"
-                            placeholder={`Пример для ${currentCity.name}: ул. Ленина, д. 15, кв. 42, подъезд 3, этаж 5`}
+                            placeholder={`Пример для ${currentOrganization.name}: ул. Ленина, д. 15, кв. 42, подъезд 3, этаж 5`}
                             className={cn(
                                 "w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors bg-gray-700 text-white placeholder:text-gray-500",
                                 errors.address?.message
