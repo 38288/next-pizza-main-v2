@@ -1,8 +1,7 @@
-// shared/components/shared/header.tsx
 'use client';
 
 import { cn } from '@/shared/lib/utils';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Container } from './container';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -10,90 +9,79 @@ import { CartButton } from './cart-button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { ProfileButton } from './profile-button';
-import { AuthModal } from './modals';
-import { useCity } from '@/shared/hooks/use-city';
+import { AuthModal, CityModal } from './modals';
+import { Button } from '@/shared/components/ui/button';
+import { MapPin, ChevronDown } from 'lucide-react';
+import { useCityStore } from '@/shared/store/city';
 
 interface Props {
     hasSearch?: boolean;
     hasCart?: boolean;
     className?: string;
+    currentCity?: string;
+    cities?: Array<{ id: string; name: string; code: string }>;
+    showCityModal?: boolean;
 }
 
-const CitySelector: React.FC<{
-    selectedCity: string;
-    setSelectedCity: (city: string) => void
-}> = ({ selectedCity, setSelectedCity }) => {
-    const [isOpen, setIsOpen] = useState<boolean>(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    const cities = ['Верхняя Салда, Парковая', 'Верхняя Салда, Студент', 'Качканар', 'Екатеринбург'];
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleCitySelect = (city: string) => {
-        setSelectedCity(city);
-        setIsOpen(false);
-    };
-
-    return (
-        <div className="flex-1 flex justify-center mx-4">
-            <div className="relative group" ref={dropdownRef}>
-                <button
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white border border-gray-600 rounded-lg hover:border-gray-500 bg-gray-800 hover:bg-gray-700 transition-all duration-200"
-                >
-                    <span>{selectedCity}</span>
-                    <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-
-                <div className={`absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg shadow-gray-900/50 transition-all duration-200 z-50 ${
-                    isOpen
-                        ? 'opacity-100 visible translate-y-0'
-                        : 'opacity-0 invisible -translate-y-2'
-                }`}>
-                    {cities.map((city) => (
-                        <button
-                            key={city}
-                            onClick={() => handleCitySelect(city)}
-                            className={`w-full px-4 py-2 text-left text-sm transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                                selectedCity === city
-                                    ? 'bg-gray-700 text-white font-medium'
-                                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                            }`}
-                        >
-                            {city}
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export const Header: React.FC<Props> = ({ hasCart = true, className }) => {
+export const Header: React.FC<Props> = ({
+                                            hasCart = true,
+                                            className,
+                                            currentCity: serverCurrentCity,
+                                            cities: serverCities = [],
+                                            showCityModal = false,
+                                        }) => {
     const router = useRouter();
     const [openAuthModal, setOpenAuthModal] = useState(false);
-    const { selectedCity, setSelectedCity, isInitialized } = useCity();
+    const [openCityModal, setOpenCityModal] = useState(showCityModal);
+    const [isInitializing, setIsInitializing] = useState(true);
+
+    const { selectedCity, cities: storeCities, setSelectedCity, setCities } = useCityStore();
 
     const searchParams = useSearchParams();
 
-    React.useEffect(() => {
+    // Инициализация при монтировании
+    useEffect(() => {
+        const initializeCity = async () => {
+            setIsInitializing(true);
+
+            // 1. Сохраняем города в стор
+            if (serverCities.length > 0 && storeCities.length === 0) {
+                setCities(serverCities);
+            }
+
+            // 2. Проверяем localStorage для быстрого отображения
+            if (typeof window !== 'undefined') {
+                const savedCity = localStorage.getItem('selectedCity');
+                if (savedCity && savedCity !== selectedCity) {
+                    setSelectedCity(savedCity);
+                }
+            }
+
+            // 3. Синхронизируем серверный город с клиентским состоянием
+            if (serverCurrentCity && serverCurrentCity !== selectedCity) {
+                setSelectedCity(serverCurrentCity);
+
+                // Сохраняем в localStorage для консистентности
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('selectedCity', serverCurrentCity);
+                }
+            }
+
+            setIsInitializing(false);
+        };
+
+        initializeCity();
+    }, [serverCurrentCity, serverCities, storeCities.length, setCities, setSelectedCity]);
+
+    // Показываем модальное окно при первом заходе (нет города)
+    useEffect(() => {
+        if (!isInitializing && !selectedCity && !serverCurrentCity && serverCities.length > 0) {
+            setOpenCityModal(true);
+        }
+    }, [isInitializing, selectedCity, serverCurrentCity, serverCities]);
+
+    // Обработка toast-уведомлений
+    useEffect(() => {
         let toastMessage = '';
 
         if (searchParams.has('paid')) {
@@ -112,82 +100,153 @@ export const Header: React.FC<Props> = ({ hasCart = true, className }) => {
                 });
             }, 1000);
         }
-    }, []);
+    }, [searchParams, router]);
 
-    // Скелетон для загрузки
-    if (!isInitialized) {
-        return (
-            <header className={cn('border-b border-gray-700', className)}>
+    const handleCitySelect = async (cityId: string) => {
+        try {
+            // Сохраняем в стор
+            setSelectedCity(cityId);
+
+            // Сохраняем в cookies через API
+            const response = await fetch('/api/city', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cityId }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save city to cookies');
+            }
+
+            // Сохраняем в localStorage для клиентского доступа
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('selectedCity', cityId);
+            }
+
+            setOpenCityModal(false);
+
+            // Обновляем URL с параметром города
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('city', cityId);
+
+            // Обновляем страницу
+            router.push(`/?${params.toString()}`);
+            router.refresh();
+
+            toast.success('Город успешно выбран!');
+
+        } catch (error) {
+            console.error('Failed to save city:', error);
+            toast.error('Не удалось сохранить город. Попробуйте снова.');
+
+            // В случае ошибки всё равно закрываем модалку, но показываем ошибку
+            setOpenCityModal(false);
+        }
+    };
+
+    const handleCityModalClose = () => {
+        // Закрываем только если не в forced режиме
+        if (selectedCity || serverCurrentCity) {
+            setOpenCityModal(false);
+        }
+    };
+
+    // Получаем уникальные города без дубликатов
+    const uniqueCities = useMemo(() => {
+        // Объединяем города, отдавая приоритет серверным
+        const allCities = [...serverCities, ...storeCities];
+
+        // Используем Map для гарантированной уникальности по id
+        const cityMap = new Map();
+        allCities.forEach(city => {
+            if (!cityMap.has(city.id)) {
+                cityMap.set(city.id, city);
+            }
+        });
+
+        return Array.from(cityMap.values());
+    }, [storeCities, serverCities]);
+
+    // Получаем отображаемое название города
+    const getCurrentCityName = () => {
+        if (isInitializing) return 'Загрузка...';
+
+        const cityId = selectedCity || serverCurrentCity;
+        if (!cityId) return 'Выберите город';
+
+        // Ищем в приоритетном порядке
+        const city = serverCities.find(c => c.id === cityId)
+            || storeCities.find(c => c.id === cityId)
+            || uniqueCities.find(c => c.id === cityId);
+
+        return city?.name || 'Город не найден';
+    };
+
+    return (
+        <>
+            <header className={cn('border-b border-gray-700 bg-gray-900', className)}>
                 <Container className="flex items-center justify-between py-4 sm:py-6 md:py-8 px-4 sm:px-6 lg:px-8">
-                    {/* Скелетон для логотипа */}
-                    <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-[35px] md:h-[35px] bg-gray-700 rounded animate-pulse" />
-                        <div className="hidden sm:block">
-                            <div className="h-6 w-32 bg-gray-700 rounded animate-pulse mb-1" />
-                            <div className="h-4 w-24 bg-gray-700 rounded animate-pulse" />
+                    {/* Логотип */}
+                    <Link href="/" className="flex-shrink-0">
+                        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+                            <Image
+                                src="/logo.jpg"
+                                alt="Логотип Мясной Цех"
+                                width={35}
+                                height={35}
+                                className="w-8 h-8 sm:w-10 sm:h-10 md:w-[35px] md:h-[35px] rounded-lg"
+                                priority
+                            />
+                            <div className="hidden sm:block">
+                                <h1 className="text-lg md:text-xl lg:text-2xl uppercase font-black leading-tight text-white">
+                                    Мясной Цех
+                                </h1>
+                                <p className="text-xs md:text-sm text-gray-400 leading-3 hidden md:block">
+                                    сделано на Урале
+                                </p>
+                            </div>
+                            <div className="sm:hidden">
+                                <h1 className="text-lg font-black uppercase leading-tight text-white">
+                                    МЦ
+                                </h1>
+                            </div>
                         </div>
+                    </Link>
+
+                    {/* Кнопка выбора города */}
+                    <div className="flex-1 max-w-xs mx-4">
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start text-white hover:text-orange-400 hover:bg-gray-800 border border-gray-700 hover:border-orange-500 transition-colors"
+                            onClick={() => setOpenCityModal(true)}
+                            aria-label="Выбрать город"
+                            disabled={isInitializing}
+                        >
+                            <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+                            <span className="truncate font-medium">{getCurrentCityName()}</span>
+                            <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
+                        </Button>
                     </div>
 
-                    {/* Скелетон для выбора города */}
-                    <div className="flex-1 flex justify-center mx-4">
-                        <div className="w-32 h-9 bg-gray-700 rounded-lg animate-pulse" />
-                    </div>
-
-                    {/* Скелетон для кнопок */}
+                    {/* Кнопки профиля и корзины */}
                     <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                        <div className="w-8 h-8 bg-gray-700 rounded-full animate-pulse" />
-                        <div className="w-8 h-8 bg-gray-700 rounded-full animate-pulse" />
+                        <ProfileButton onAuthClick={() => setOpenAuthModal(true)} />
+                        {hasCart && <CartButton />}
                     </div>
                 </Container>
             </header>
-        );
-    }
 
-    return (
-        <header className={cn('border-b border-gray-700 bg-gray-900', className)}>
-            <Container className="flex items-center justify-between py-4 sm:py-6 md:py-8 px-4 sm:px-6 lg:px-8">
-                {/* Левая часть - логотип */}
-                <Link href="/" className="flex-shrink-0">
-                    <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                        <Image
-                            src="/logo.jpg"
-                            alt="Logo"
-                            width={35}
-                            height={35}
-                            className="w-8 h-8 sm:w-10 sm:h-10 md:w-[35px] md:h-[35px]"
-                        />
-                        <div className="hidden sm:block">
-                            <h1 className="text-lg md:text-xl lg:text-2xl uppercase font-black leading-tight text-white">
-                                Мясной Цех
-                            </h1>
-                            <p className="text-xs md:text-sm text-gray-400 leading-3 hidden md:block">
-                                сделано на Урале
-                            </p>
-                        </div>
-                        {/* Мобильная версия текста */}
-                        <div className="sm:hidden">
-                            <h1 className="text-lg font-black uppercase leading-tight text-white">
-                                МЦ
-                            </h1>
-                        </div>
-                    </div>
-                </Link>
+            {/* Модальные окна */}
+            <AuthModal open={openAuthModal} onClose={() => setOpenAuthModal(false)} />
 
-                {/* Компонент выбора города */}
-                {hasCart && <CitySelector
-                    selectedCity={selectedCity}
-                    setSelectedCity={setSelectedCity}
-                />}
-
-                {/* Правая часть - кнопки */}
-                <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                    <AuthModal open={openAuthModal} onClose={() => setOpenAuthModal(false)} />
-
-                    {/*<ProfileButton onClickSignIn={() => setOpenAuthModal(true)} />*/}
-
-                    {hasCart && <CartButton />}
-                </div>
-            </Container>
-        </header>
+            <CityModal
+                isOpen={openCityModal}
+                onClose={handleCityModalClose}
+                onCitySelect={handleCitySelect}
+                cities={uniqueCities}
+                currentCity={selectedCity || serverCurrentCity}
+                isForced={!selectedCity && !serverCurrentCity}
+            />
+        </>
     );
 };

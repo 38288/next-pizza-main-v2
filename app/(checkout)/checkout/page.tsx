@@ -11,14 +11,14 @@ import {
     CheckoutCart,
     CheckoutSelectReceipt,
 } from '@/shared/components';
-import { CheckoutFormValues, checkoutFormSchema } from '@/shared/constants';
+import { CheckoutFormValues, checkoutFormSchema } from '@/shared/constants/checkout-form-schema';
 import { useCart } from '@/shared/hooks';
 import { createOrder } from '@/app/actions';
 import toast from 'react-hot-toast';
 import React from 'react';
 import { useSession } from 'next-auth/react';
 import { Api } from '@/shared/services/api-client';
-import { useCity } from '@/shared/hooks/use-city';
+import { useCityStore } from '@/shared/store/city';
 import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
@@ -28,8 +28,15 @@ export default function CheckoutPage() {
 
     const { totalAmount, updateItemQuantity, items, removeCartItem, loading } = useCart();
     const { data: session } = useSession();
-    const { selectedCity, isInitialized, useCitySubscription } = useCity();
+    const { selectedCity: cityId, cities } = useCityStore();
     const router = useRouter();
+
+    // Получаем название города для формы
+    const currentCityName = React.useMemo(() => {
+        if (!cityId) return '';
+        const city = cities.find(c => c.id === cityId);
+        return city ? city.name : '';
+    }, [cityId, cities]);
 
     const form = useForm<CheckoutFormValues>({
         resolver: zodResolver(checkoutFormSchema),
@@ -38,61 +45,67 @@ export default function CheckoutPage() {
             phone: '',
             address: '',
             comment: '',
-            city: selectedCity,
+            city: cityId || '',
             deliveryType: 'pickup',
             paymentMethod: 'cash',
         },
     });
 
-    // Подписка на изменения города в реальном времени
-    useCitySubscription((city: string) => {
-        form.setValue('city', city, { shouldValidate: true });
-    });
-
-    // Обновляем значение города при инициализации и изменении
+    // Обновляем значение города при изменении
     React.useEffect(() => {
-        if (isInitialized) {
-            form.setValue('city', selectedCity, { shouldValidate: true });
+        if (cityId) {
+            form.setValue('city', cityId, { shouldValidate: true });
         }
-    }, [selectedCity, isInitialized, form]);
+    }, [cityId, form]);
 
     // Синхронизируем локальные состояния с формой
     React.useEffect(() => {
-        form.setValue('deliveryType', deliveryType);
+        form.setValue('deliveryType', deliveryType, { shouldValidate: true });
     }, [deliveryType, form]);
 
     React.useEffect(() => {
-        form.setValue('paymentMethod', paymentMethod);
+        form.setValue('paymentMethod', paymentMethod, { shouldValidate: true });
     }, [paymentMethod, form]);
 
     const fetchUserInfo = React.useCallback(async () => {
         try {
+            if (!session) return;
+
             const data = await Api.auth.getMe();
             const [firstName] = data.fullName.split(' ');
 
             form.setValue('firstName', firstName || '');
             form.setValue('phone', data.phone || '');
-            form.setValue('city', selectedCity);
-            form.setValue('deliveryType', deliveryType);
-            form.setValue('paymentMethod', paymentMethod);
+
+            // Город из стора уже установлен в useEffect выше
         } catch (error) {
             console.error('Ошибка загрузки данных пользователя:', error);
         }
-    }, [form, selectedCity, deliveryType, paymentMethod]);
+    }, [form, session]);
 
     React.useEffect(() => {
-        if (session && isInitialized) {
+        if (session) {
             fetchUserInfo();
         }
-    }, [session, fetchUserInfo, isInitialized]);
+    }, [session, fetchUserInfo]);
 
+    // В функции onSubmit обновите передачу данных
     const onSubmit = async (data: CheckoutFormValues) => {
         try {
             setSubmitting(true);
 
-            console.log('Данные заказа:', data);
+            // Получаем полное название города
+            const cityName = currentCityName || '';
 
-            const result = await createOrder(data);
+            // Подготовка данных для отправки
+            const orderData = {
+                ...data,
+                cityName: cityName // Добавляем название города
+            };
+
+            console.log('📦 Отправка данных заказа:', orderData);
+
+            const result = await createOrder(orderData);
 
             toast.success(`Заказ #${result.orderId} успешно оформлен!`, {
                 duration: 3000,
@@ -106,11 +119,12 @@ export default function CheckoutPage() {
 
         } catch (err) {
             console.error('Ошибка оформления заказа:', err);
-            setSubmitting(false);
             toast.error('Не удалось создать заказ. Попробуйте еще раз.', {
                 duration: 4000,
                 position: 'bottom-center',
             });
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -119,20 +133,22 @@ export default function CheckoutPage() {
         updateItemQuantity(id, newQuantity);
     };
 
-    const isFormDisabled = loading || submitting || !isInitialized;
+    const isFormDisabled = loading || submitting || !cityId;
 
-    if (!isInitialized) {
+    if (!cityId) {
         return (
             <Container className="mt-4 sm:mt-6 lg:mt-8 pb-20 sm:pb-24">
-                <div className="animate-pulse">
-                    <div className="h-8 bg-black rounded w-1/3 mb-6"></div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 space-y-4">
-                            <div className="h-64 bg-black rounded"></div>
-                            <div className="h-32 bg-black rounded"></div>
-                        </div>
-                        <div className="h-48 bg-black rounded"></div>
-                    </div>
+                <div className="text-center py-12">
+                    <h2 className="text-2xl font-bold text-white mb-4">Город не выбран</h2>
+                    <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                        Для оформления заказа необходимо выбрать город доставки
+                    </p>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                    >
+                        Выбрать город
+                    </button>
                 </div>
             </Container>
         );
@@ -170,7 +186,7 @@ export default function CheckoutPage() {
                             <CheckoutSidebar
                                 totalAmount={totalAmount}
                                 loading={isFormDisabled}
-                                selectedCity={selectedCity}
+                                selectedCity={currentCityName}
                                 deliveryType={deliveryType}
                                 className="sticky top-4"
                             />

@@ -3,22 +3,29 @@
 
 import { prisma } from '@/prisma/prisma-client';
 import { CheckoutFormValues } from '@/shared/constants';
-import { sendTelegramMessage } from '@/shared/lib/send-telegram-message';
+import { sendTelegramMessage as sendTelegram } from '@/shared/lib/send-telegram-message';
 import { getUserSession } from '@/shared/lib/get-user-session';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 import { hashSync } from 'bcrypt';
 import { cookies } from 'next/headers';
 
-export async function createOrder(data: CheckoutFormValues) {
+export async function createOrder(data: CheckoutFormValues & { cityName?: string }) {
+    console.log('🔵 ========== НАЧАЛО СОЗДАНИЯ ЗАКАЗА ==========');
+
     try {
-        const cookieStore = cookies();
-        const cartToken = cookieStore.get('cartToken')?.value;
+        // 1. Получаем cookies
+        const cookieStore = await cookies();
+        const cartToken = cookieStore.get('cartToken')?.value || undefined;
+
+        console.log('📦 Данные заказа:', JSON.stringify(data, null, 2));
+        console.log('🔑 Cart Token:', cartToken || 'НЕ НАЙДЕН');
 
         if (!cartToken) {
             throw new Error('Cart token not found');
         }
 
-        /* Находим корзину по токену */
+        // 2. Находим корзину
+        console.log('🔍 Поиск корзины...');
         const userCart = await prisma.cart.findFirst({
             include: {
                 user: true,
@@ -38,15 +45,28 @@ export async function createOrder(data: CheckoutFormValues) {
             },
         });
 
+        console.log('🛒 Корзина найдена:', userCart ? `✅ (${userCart.items.length} товаров)` : '❌ НЕ НАЙДЕНА');
+        console.log('💰 Сумма корзины:', userCart?.totalAmount || 0);
+
         if (!userCart) {
             throw new Error('Cart not found');
         }
 
-        if (userCart?.totalAmount === 0) {
+        if (userCart.totalAmount === 0) {
             throw new Error('Cart is empty');
         }
 
-        /* Создаем заказ */
+        // 3. Получаем название города
+        let cityName = data.cityName || undefined;
+        if (!cityName) {
+            const city = await getCityNameById(data.city);
+            cityName = city || undefined;
+        }
+
+        console.log('🏙️ Название города:', cityName || 'Не указано');
+
+        // 4. Создаем заказ
+        // В функции createOrder обновите создание заказа:
         const orderData = {
             token: cartToken,
             fullName: data.firstName,
@@ -54,6 +74,7 @@ export async function createOrder(data: CheckoutFormValues) {
             phone: data.phone,
             address: data.address || '',
             city: data.city,
+            cityName: cityName || null, // Используем новое поле
             comment: data.comment || null,
             deliveryType: data.deliveryType,
             paymentMethod: data.paymentMethod,
@@ -66,7 +87,10 @@ export async function createOrder(data: CheckoutFormValues) {
             data: orderData,
         });
 
-        /* Очищаем корзину */
+        console.log('✅ Заказ создан в БД, ID:', order.id);
+
+        // 5. Очищаем корзину
+        console.log('🧹 Очистка корзины...');
         await prisma.cart.update({
             where: {
                 id: userCart.id,
@@ -82,13 +106,17 @@ export async function createOrder(data: CheckoutFormValues) {
             },
         });
 
-        /* Отправляем уведомление в Telegram */
-        await sendOrderToTelegram(order, userCart.items, data);
+        console.log('✅ Корзина очищена');
 
-        console.log(`✅ Заказ #${order.id} создан`);
-        console.log(`🏙️ Город: ${data.city}`);
-        console.log(`🚚 Доставка: ${data.deliveryType}`);
-        console.log(`💳 Оплата: ${data.paymentMethod}`);
+        // 6. Отправляем в Telegram
+        console.log('📤 Отправка уведомления в Telegram...');
+        await sendOrderToTelegram(order, userCart.items, data, cityName || '', sendTelegram);
+
+        console.log('🎉 ========== ЗАКАЗ УСПЕШНО ОФОРМЛЕН ==========');
+        console.log(`📋 Номер заказа: #${order.id}`);
+        console.log(`🏙️ Город: ${cityName || data.city}`);
+        console.log(`🚚 Тип: ${data.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}`);
+        console.log(`💳 Оплата: ${data.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}`);
         console.log(`💰 Сумма: ${order.totalAmount} ₽`);
 
         return {
@@ -98,16 +126,42 @@ export async function createOrder(data: CheckoutFormValues) {
         };
 
     } catch (err) {
-        console.log('[CreateOrder] Server error', err);
+        console.error('❌ ========== ОШИБКА ПРИ СОЗДАНИИ ЗАКАЗА ==========');
+        console.error('Error details:', err);
         throw err;
     }
 }
 
-// Функция для форматирования сообщения в Telegram
-async function sendOrderToTelegram(order: any, cartItems: any[], formData: CheckoutFormValues) {
+// Вспомогательная функция для получения названия города по ID
+async function getCityNameById(cityId: string): Promise<string | null> {
     try {
+        const cities = [
+            { id: "5a5963df-4e9a-45d2-aa7b-2e2a1a5e704d", name: "Гикалова", code: "3" },
+            { id: "8740e9b6-ff6e-481e-b694-dc020cdf7bc4", name: "Парковая", code: "2" },
+            { id: "8e57e25d-8c9c-486d-b41d-ac96a2c1f4cc", name: "Сибирский тракт", code: "1" }
+        ];
+
+        const city = cities.find(c => c.id === cityId);
+        return city ? city.name : null;
+    } catch (error) {
+        console.error('Ошибка при получении названия города:', error);
+        return null;
+    }
+}
+
+// Функция для отправки уведомления в Telegram
+async function sendOrderToTelegram(
+    order: any,
+    cartItems: any[],
+    formData: CheckoutFormValues,
+    cityName: string, // Теперь строка, не может быть null/undefined
+    sendTelegramFunction: (message: string) => Promise<any>
+) {
+    try {
+        console.log('📝 Формирование сообщения для Telegram...');
+
         // Форматируем товары
-        const itemsText = cartItems.map(item => {
+        const itemsText = cartItems.map((item, index) => {
             const productName = item.productItem?.product?.name || 'Товар';
             const size = item.productItem?.size;
 
@@ -124,43 +178,66 @@ async function sendOrderToTelegram(order: any, cartItems: any[], formData: Check
                 ? `\n   🧂 Допы: ${item.ingredients.map((ing: any) => ing.name).join(', ')}`
                 : '';
 
-            return `• ${productName}${meatInfo} - ${item.quantity}шт.${ingredients}`;
+            return `${index + 1}. ${productName}${meatInfo} - ${item.quantity}шт.${ingredients}`;
         }).join('\n');
 
         // Информация о доставке
-        const deliveryInfo = formData.deliveryType === 'delivery'
-            ? `🚚 <b>Доставка</b>\n📍 <b>Адрес:</b> ${formData.address || 'Не указан'}\n`
-            : `🏪 <b>Самовывоз</b>\n`;
+        const deliveryText = formData.deliveryType === 'delivery'
+            ? `🚚 <b>ДОСТАВКА</b>\n📍 <b>Адрес:</b> ${formData.address || 'Не указан'}\n`
+            : `🏪 <b>САМОВЫВОЗ</b>\n`;
 
         // Информация об оплате
-        const paymentInfo = formData.paymentMethod === 'cash'
-            ? '💵 <b>Оплата при получении</b>\n'
-            : '💳 <b>Онлайн оплата</b>\n';
+        const paymentText = formData.paymentMethod === 'cash'
+            ? '💵 <b>ОПЛАТА ПРИ ПОЛУЧЕНИИ</b>\n'
+            : '💳 <b>ОНЛАЙН ОПЛАТА</b>\n';
+
+        // Комментарий
+        const commentText = formData.comment
+            ? `💬 <b>Комментарий:</b>\n${formData.comment}\n`
+            : '💬 <b>Комментарий:</b> Нет\n';
 
         // Создаем сообщение
         const message = `
 🆕 <b>НОВЫЙ ЗАКАЗ #${order.id}</b>
 
-👤 <b>Клиент:</b> ${formData.firstName}
-📞 <b>Телефон:</b> ${formData.phone}
-🏙️ <b>Город:</b> ${formData.city}
-${deliveryInfo}${paymentInfo}💬 <b>Комментарий:</b> ${formData.comment || 'Нет'}
+👤 <b>КЛИЕНТ:</b> ${formData.firstName}
+📞 <b>ТЕЛЕФОН:</b> <code>${formData.phone}</code>
+🏙️ <b>ФИЛИАЛ:</b> ${cityName || 'Не указан'}
 
-🛒 <b>Состав заказа:</b>
+${deliveryText}${paymentText}${commentText}
+🛒 <b>СОСТАВ ЗАКАЗА:</b>
 ${itemsText}
 
-💰 <b>Итого:</b> ${order.totalAmount} ₽
-⏰ <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
+💰 <b>ИТОГО:</b> <b>${order.totalAmount} ₽</b>
+⏰ <b>ВРЕМЯ:</b> ${new Date().toLocaleString('ru-RU')}
+----------------------------
+<b>ID заказа:</b> ${order.id}
+<b>ID города:</b> ${formData.city}
+<b>Тип:</b> ${formData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}
+<b>Оплата:</b> ${formData.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}
         `.trim();
 
+        console.log('📄 Сообщение для Telegram (первые 500 символов):');
+        console.log(message.substring(0, 500) + (message.length > 500 ? '...' : ''));
+
         // Отправляем в Telegram
-        await sendTelegramMessage(message);
+        console.log('📤 Вызов функции sendTelegram...');
+        const telegramResult = await sendTelegramFunction(message);
+
+        if (telegramResult) {
+            console.log('✅ Уведомление успешно отправлено в Telegram');
+            console.log('📨 Ответ Telegram:', telegramResult);
+        } else {
+            console.warn('⚠️ Функция sendTelegram вернула null/undefined');
+        }
 
     } catch (error) {
-        console.error('Error sending order to Telegram:', error);
+        console.error('❌ Ошибка при формировании/отправке сообщения в Telegram:', error);
+        // Не прерываем создание заказа из-за ошибки Telegram
     }
 }
 
+// Остальные функции остаются без изменений
 export async function updateUserInfo(body: {
     fullName?: string;
     phone?: string;
@@ -230,7 +307,7 @@ export async function registerUser(body: {
     password: string;
 }) {
     try {
-        // Проверяем существование пользователя по телефону (а не по email)
+        // Проверяем существование пользователя по телефону
         const user = await prisma.user.findFirst({
             where: {
                 phone: body.phone,
@@ -245,11 +322,11 @@ export async function registerUser(body: {
             throw new Error('Пользователь с таким телефоном уже существует');
         }
 
-        // Создаем пользователя с телефоном (email оставляем null или убираем)
+        // Создаем пользователя
         const createdUser = await prisma.user.create({
             data: {
                 fullName: body.fullName,
-                email: null, // Или можно вообще убрать это поле
+                email: null,
                 phone: body.phone,
                 password: hashSync(body.password, 10),
             },
@@ -264,10 +341,7 @@ export async function registerUser(body: {
             },
         });
 
-        // Обновляем сообщение для телефона
         console.log(`Код подтверждения для ${createdUser.phone}: ${code}`);
-
-        // Здесь можно добавить отправку SMS с кодом подтверждения
 
     } catch (err) {
         console.log('Error [CREATE_USER]', err);

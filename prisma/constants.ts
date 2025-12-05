@@ -1,3 +1,4 @@
+//prisma/constants.ts
 export const categories = [
   {
     name: 'Пиццы',

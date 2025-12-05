@@ -1,4 +1,4 @@
-//shared/components/shared/products-group-list.tsx
+// shared/components/shared/products-group-list.tsx
 'use client';
 
 import React from 'react';
@@ -37,6 +37,15 @@ export const ProductsGroupList: React.FC<Props> = ({
         }
     }, [categoryId, intersection?.isIntersecting, title]);
 
+    // Фильтруем продукты, у которых есть хотя бы один item
+    const productsWithItems = items.filter(product =>
+        product.items && product.items.length > 0
+    );
+
+    if (productsWithItems.length === 0) {
+        return null; // Не рендерим категорию без товаров
+    }
+
     return (
         <div className={className} id={title} ref={intersectionRef}>
             <Title text={title} size="lg" className="font-extrabold mb-4 sm:mb-5" />
@@ -45,14 +54,15 @@ export const ProductsGroupList: React.FC<Props> = ({
                 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-[50px]',
                 listClassName
             )}>
-                {items.map((product, i) => (
+                {productsWithItems.map((product) => (
                     <ProductCard
                         key={product.id}
                         id={product.id}
                         name={product.name}
                         imageUrl={product.imageUrl}
-                        price={product.items[0].price}
-                        ingredients={product.ingredients}
+                        // Используем первый доступный item, проверяем его существование
+                        price={product.items[0]?.price || 0}
+                        ingredients={product.ingredients || []}
                     />
                 ))}
             </div>

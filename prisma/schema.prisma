@@ -134,7 +134,8 @@ model Order {
   fullName String
   email    String?
   phone    String
-  city     String
+  city     String // ID города
+  cityName String? // Название города (ДОБАВЛЕНО)
   address  String
   comment  String?
 
