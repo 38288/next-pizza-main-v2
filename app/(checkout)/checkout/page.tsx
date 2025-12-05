@@ -1,5 +1,4 @@
 // app/(checkout)/checkout/page.tsx
-// app/(checkout)/checkout/page.tsx
 'use client';
 
 import { FormProvider, useForm } from 'react-hook-form';
@@ -102,14 +101,32 @@ export default function CheckoutPage() {
                 cityName: organizationName // Добавляем название организации
             };
 
-            console.log('📦 Отправка данных заказа:', orderData);
 
             const result = await createOrder(orderData);
 
-            toast.success(`Заказ #${result.orderId} успешно оформлен!`, {
-                duration: 3000,
-                position: 'bottom-center',
-            });
+
+            toast.success(
+                <div className="text-center">
+                    <div className="font-bold text-lg mb-1">✅ Заказ оформлен!</div>
+                    <div>Номер заказа: <span className="font-bold">#{result.orderId}</span></div>
+                    <div className="text-sm text-gray-200 mt-1">
+                        На указанный телефон придёт уведомление
+                    </div>
+                </div>,
+                {
+                    duration: 6000,
+                    position: 'bottom-center',
+                    style: {
+                        background: 'black',
+                        color: '#ffffff',
+                        borderRadius: '12px',
+                        padding: '20px 24px',
+                        maxWidth: '450px',
+                        border: '1px solid #f97316',
+                        boxShadow: '0 10px 25px -5px rgba(234, 88, 12, 0.3)',
+                    },
+                }
+            );
 
             // Перенаправляем на главную страницу
             setTimeout(() => {

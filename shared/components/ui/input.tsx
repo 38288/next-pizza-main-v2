@@ -1,3 +1,4 @@
+//shared/components/ui/input.tsx
 import * as React from 'react';
 
 import { cn } from '@/shared/lib/utils';

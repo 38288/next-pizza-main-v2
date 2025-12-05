@@ -5,27 +5,47 @@ import { prisma } from '@/prisma/prisma-client';
 import { CheckoutFormValues } from '@/shared/constants';
 import { sendTelegramMessage as sendTelegram } from '@/shared/lib/send-telegram-message';
 import { getUserSession } from '@/shared/lib/get-user-session';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, User } from '@prisma/client';
 import { hashSync } from 'bcrypt';
 import { cookies } from 'next/headers';
 
+interface OrderItem {
+    productItem?: {
+        product?: {
+            name: string;
+        };
+        size: number | null; // Изменено: может быть null
+    };
+    quantity: number;
+    ingredients?: Array<{ name: string }>;
+}
+
+interface TelegramOrder {
+    id: number;
+    totalAmount: number;
+}
+
+const ORGANIZATIONS_FALLBACK = [
+    { externalId: "5a5963df-4e9a-45d2-aa7b-2e2a1a5e704d", name: "Гикалова", code: "3" },
+    { externalId: "8740e9b6-ff6e-481e-b694-dc020cdf7bc4", name: "Парковая", code: "2" },
+    { externalId: "8e57e25d-8c9c-486d-b41d-ac96a2c1f4cc", name: "Сибирский тракт", code: "1" }
+] as const;
+
+const MEAT_MAPPING: Record<number, string> = {
+    20: "Свинина",
+    30: "Курица",
+    40: "Сосиски"
+};
+
 export async function createOrder(data: CheckoutFormValues & { cityName?: string }) {
-    console.log('🔵 ========== НАЧАЛО СОЗДАНИЯ ЗАКАЗА ==========');
-
     try {
-        // 1. Получаем cookies
         const cookieStore = await cookies();
-        const cartToken = cookieStore.get('cartToken')?.value || undefined;
-
-        console.log('📦 Данные заказа:', JSON.stringify(data, null, 2));
-        console.log('🔑 Cart Token:', cartToken || 'НЕ НАЙДЕН');
+        const cartToken = cookieStore.get('cartToken')?.value;
 
         if (!cartToken) {
             throw new Error('Cart token not found');
         }
 
-        // 2. Находим корзину
-        console.log('🔍 Поиск корзины...');
         const userCart = await prisma.cart.findFirst({
             include: {
                 user: true,
@@ -45,9 +65,6 @@ export async function createOrder(data: CheckoutFormValues & { cityName?: string
             },
         });
 
-        console.log('🛒 Корзина найдена:', userCart ? `✅ (${userCart.items.length} товаров)` : '❌ НЕ НАЙДЕНА');
-        console.log('💰 Сумма корзины:', userCart?.totalAmount || 0);
-
         if (!userCart) {
             throw new Error('Cart not found');
         }
@@ -56,40 +73,31 @@ export async function createOrder(data: CheckoutFormValues & { cityName?: string
             throw new Error('Cart is empty');
         }
 
-        // 3. Получаем название организации из БД
         let organizationName = data.cityName || '';
+
         if (!organizationName) {
-            // Пробуем получить организацию из БД
             try {
                 const organization = await prisma.organization.findUnique({
                     where: { externalId: data.city }
                 });
                 organizationName = organization?.name || data.city;
             } catch (error) {
-                console.log('⚠️ Не удалось получить организацию из БД, используем fallback');
-                // Fallback на локальные данные
-                const organizations = [
-                    { externalId: "5a5963df-4e9a-45d2-aa7b-2e2a1a5e704d", name: "Гикалова", code: "3" },
-                    { externalId: "8740e9b6-ff6e-481e-b694-dc020cdf7bc4", name: "Парковая", code: "2" },
-                    { externalId: "8e57e25d-8c9c-486d-b41d-ac96a2c1f4cc", name: "Сибирский тракт", code: "1" }
-                ];
+                console.log('Failed to fetch organization from DB, using fallback');
 
-                const org = organizations.find(o => o.externalId === data.city);
-                organizationName = org ? org.name : data.city;
+                const foundOrganization = ORGANIZATIONS_FALLBACK.find(org => org.externalId === data.city);
+                organizationName = foundOrganization ? foundOrganization.name : data.city;
             }
         }
 
-        console.log('🏙️ Название организации:', organizationName);
-
-        // 4. Создаем заказ (БЕЗ поля cityName)
         const orderData = {
             token: cartToken,
-            fullName: data.firstName,
+            fullName: data.firstName.trim(),
             email: null,
-            phone: data.phone,
-            address: data.address || '',
-            city: data.city, // externalId организации
-            comment: data.comment || null,
+            phone: data.phone.trim(),
+            address: data.address?.trim() || '',
+            city: data.city,
+            cityName: organizationName,
+            comment: data.comment?.trim() || null,
             deliveryType: data.deliveryType,
             paymentMethod: data.paymentMethod,
             totalAmount: userCart.totalAmount,
@@ -97,139 +105,100 @@ export async function createOrder(data: CheckoutFormValues & { cityName?: string
             items: JSON.stringify(userCart.items),
         };
 
-        console.log('📝 Данные для создания заказа:', orderData);
-
         let order;
         try {
             order = await prisma.order.create({
                 data: orderData,
             });
-            console.log('✅ Заказ создан в БД, ID:', order.id);
         } catch (error) {
-            console.error('❌ Ошибка при создании заказа в БД:', error);
-
-            // Если ошибка из-за несуществующего поля, пробуем без него
             const errorMessage = error instanceof Error ? error.message : String(error);
-            if (errorMessage.includes('cityName') || errorMessage.includes('does not exist')) {
-                console.log('⚠️ Пытаемся создать заказ без проблемных полей...');
+            const isInvalidFieldError = errorMessage.includes('cityName') ||
+                errorMessage.includes('does not exist') ||
+                errorMessage.includes('Unknown arg');
 
-                // Убираем все необязательные поля которые могут вызвать ошибку
-                const fallbackOrderData = {
-                    token: cartToken,
-                    fullName: data.firstName,
-                    phone: data.phone,
-                    address: data.address || '',
-                    city: data.city,
-                    deliveryType: data.deliveryType,
-                    paymentMethod: data.paymentMethod,
-                    totalAmount: userCart.totalAmount,
-                    status: OrderStatus.SUCCEEDED,
-                    items: JSON.stringify(userCart.items),
-                };
+            if (isInvalidFieldError) {
+                const { cityName, ...fallbackOrderData } = orderData;
 
+                console.log('Using fallback order data without cityName field');
                 order = await prisma.order.create({
-                    data: fallbackOrderData as any,
+                    data: fallbackOrderData,
                 });
-                console.log('✅ Заказ создан (упрощенная версия), ID:', order.id);
             } else {
                 throw error;
             }
         }
 
-        // 5. Очищаем корзину
-        console.log('🧹 Очистка корзины...');
-        await prisma.cart.update({
-            where: {
-                id: userCart.id,
-            },
-            data: {
-                totalAmount: 0,
-            },
-        });
+        await prisma.$transaction([
+            prisma.cart.update({
+                where: { id: userCart.id },
+                data: { totalAmount: 0 },
+            }),
+            prisma.cartItem.deleteMany({
+                where: { cartId: userCart.id },
+            }),
+        ]);
 
-        await prisma.cartItem.deleteMany({
-            where: {
-                cartId: userCart.id,
-            },
-        });
-
-        console.log('✅ Корзина очищена');
-
-        // 6. Отправляем в Telegram
-        console.log('📤 Отправка уведомления в Telegram...');
-        await sendOrderToTelegram(order!, userCart.items, data, organizationName, sendTelegram);
-
-        console.log('🎉 ========== ЗАКАЗ УСПЕШНО ОФОРМЛЕН ==========');
-        console.log(`📋 Номер заказа: #${order!.id}`);
-        console.log(`🏙️ Организация: ${organizationName}`);
-        console.log(`🚚 Тип: ${data.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}`);
-        console.log(`💳 Оплата: ${data.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}`);
-        console.log(`💰 Сумма: ${order!.totalAmount} ₽`);
+        await sendOrderToTelegram(order, userCart.items, data, organizationName, sendTelegram);
 
         return {
-            orderId: order!.id,
+            orderId: order.id,
             success: true,
             redirectUrl: '/'
         };
 
-    } catch (err) {
-        console.error('❌ ========== ОШИБКА ПРИ СОЗДАНИИ ЗАКАЗА ==========');
-        console.error('Error details:', err);
-        if (err instanceof Error) {
-            console.error('Error stack:', err.stack);
+    } catch (error) {
+        console.error('Order creation error:', error);
+
+        if (error instanceof Error) {
+            console.error('Error stack:', error.stack);
         }
-        throw err;
+
+        throw error;
     }
 }
 
-// Функция для отправки уведомления в Telegram
 async function sendOrderToTelegram(
-    order: any,
-    cartItems: any[],
+    order: TelegramOrder,
+    cartItems: OrderItem[],
     formData: CheckoutFormValues,
     organizationName: string,
     sendTelegramFunction: (message: string) => Promise<any>
 ) {
     try {
-        console.log('📝 Формирование сообщения для Telegram...');
-
-        // Форматируем товары
         const itemsText = cartItems.map((item, index) => {
             const productName = item.productItem?.product?.name || 'Товар';
-            const size = item.productItem?.size;
-
-            // Определяем тип мяса по размеру
-            const meatMapping: { [key: number]: string } = {
-                20: "Свинина",
-                30: "Курица",
-                40: "Сосиски"
-            };
-            const meat = meatMapping[size] || '';
+            const size = item.productItem?.size || 0; // size может быть null, используем 0 по умолчанию
+            const meat = MEAT_MAPPING[size] || '';
             const meatInfo = meat ? ` (${meat})` : '';
 
-            const ingredients = item.ingredients?.length > 0
-                ? `\n   🧂 Допы: ${item.ingredients.map((ing: any) => ing.name).join(', ')}`
+            const ingredients = item.ingredients && item.ingredients.length > 0
+                ? `\n   🧂 Допы: ${item.ingredients.map(ing => ing.name).join(', ')}`
                 : '';
 
             return `${index + 1}. ${productName}${meatInfo} - ${item.quantity}шт.${ingredients}`;
         }).join('\n');
 
-        // Информация о доставке
-        const deliveryText = formData.deliveryType === 'delivery'
+        const isDelivery = formData.deliveryType === 'delivery';
+        const isCashPayment = formData.paymentMethod === 'cash';
+
+        const deliveryText = isDelivery
             ? `🚚 <b>ДОСТАВКА</b>\n📍 <b>Адрес:</b> ${formData.address || 'Не указан'}\n`
             : `🏪 <b>САМОВЫВОЗ</b>\n`;
 
-        // Информация об оплате
-        const paymentText = formData.paymentMethod === 'cash'
+        const paymentText = isCashPayment
             ? '💵 <b>ОПЛАТА ПРИ ПОЛУЧЕНИИ</b>\n'
             : '💳 <b>ОНЛАЙН ОПЛАТА</b>\n';
 
-        // Комментарий
+        const deliveryTypeText = isDelivery ? 'Доставка' : 'Самовывоз';
+        const paymentMethodText = isCashPayment ? 'Наличные' : 'Онлайн';
+
         const commentText = formData.comment
             ? `💬 <b>Комментарий:</b>\n${formData.comment}\n`
             : '💬 <b>Комментарий:</b> Нет\n';
 
-        // Создаем сообщение
+        const now = new Date();
+        const moscowTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Moscow' }));
+
         const message = `
 🆕 <b>НОВЫЙ ЗАКАЗ #${order.id}</b>
 
@@ -242,35 +211,22 @@ ${deliveryText}${paymentText}${commentText}
 ${itemsText}
 
 💰 <b>ИТОГО:</b> <b>${order.totalAmount} ₽</b>
-⏰ <b>ВРЕМЯ:</b> ${new Date().toLocaleString('ru-RU')}
+⏰ <b>ВРЕМЯ:</b> ${moscowTime.toLocaleString('ru-RU')}
 ----------------------------
 <b>ID заказа:</b> ${order.id}
 <b>ID организации:</b> ${formData.city}
-<b>Тип:</b> ${formData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}
-<b>Оплата:</b> ${formData.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}
-        `.trim();
+<b>Тип:</b> ${deliveryTypeText}
+<b>Оплата:</b> ${paymentMethodText}
+    `.trim();
 
-        console.log('📄 Сообщение для Telegram (первые 500 символов):');
-        console.log(message.substring(0, 500) + (message.length > 500 ? '...' : ''));
-
-        // Отправляем в Telegram
-        console.log('📤 Вызов функции sendTelegram...');
-        const telegramResult = await sendTelegramFunction(message);
-
-        if (telegramResult) {
-            console.log('✅ Уведомление успешно отправлено в Telegram');
-            console.log('📨 Ответ Telegram:', telegramResult);
-        } else {
-            console.warn('⚠️ Функция sendTelegram вернула null/undefined');
-        }
+        await sendTelegramFunction(message);
+        console.log('✅ Уведомление успешно отправлено в Telegram');
 
     } catch (error) {
-        console.error('❌ Ошибка при формировании/отправке сообщения в Telegram:', error);
-        // Не прерываем создание заказа из-за ошибки Telegram
+        console.error('Ошибка при отправке сообщения в Telegram:', error);
     }
 }
 
-// Остальные функции остаются без изменений
 export async function updateUserInfo(body: {
     fullName?: string;
     phone?: string;
@@ -293,7 +249,6 @@ export async function updateUserInfo(body: {
             throw new Error('Пользователь не найден');
         }
 
-        // Проверяем, не занят ли телефон другим пользователем
         if (body.phone && body.phone !== findUser.phone) {
             const phoneExists = await prisma.user.findFirst({
                 where: {
@@ -309,12 +264,11 @@ export async function updateUserInfo(body: {
             }
         }
 
-        const updateData: any = {
-            fullName: body.fullName || findUser.fullName,
-            phone: body.phone || findUser.phone,
+        const updateData: Partial<User> = {
+            fullName: body.fullName?.trim() || findUser.fullName,
+            phone: body.phone?.trim() || findUser.phone,
         };
 
-        // Обновляем пароль только если он предоставлен
         if (body.password) {
             updateData.password = hashSync(body.password, 10);
         }
@@ -329,7 +283,7 @@ export async function updateUserInfo(body: {
         return { success: true };
 
     } catch (err) {
-        console.log('Error [UPDATE_USER]', err);
+        console.error('Error [UPDATE_USER]', err);
         throw err;
     }
 }
@@ -340,10 +294,13 @@ export async function registerUser(body: {
     password: string;
 }) {
     try {
-        // Проверяем существование пользователя по телефону
+        const phone = body.phone.trim();
+        const fullName = body.fullName.trim();
+        const password = body.password;
+
         const user = await prisma.user.findFirst({
             where: {
-                phone: body.phone,
+                phone: phone,
             },
         });
 
@@ -351,17 +308,15 @@ export async function registerUser(body: {
             if (!user.verified) {
                 throw new Error('Телефон не подтвержден');
             }
-
             throw new Error('Пользователь с таким телефоном уже существует');
         }
 
-        // Создаем пользователя
         const createdUser = await prisma.user.create({
             data: {
-                fullName: body.fullName,
+                fullName: fullName,
                 email: null,
-                phone: body.phone,
-                password: hashSync(body.password, 10),
+                phone: phone,
+                password: hashSync(password, 10),
             },
         });
 
@@ -376,8 +331,10 @@ export async function registerUser(body: {
 
         console.log(`Код подтверждения для ${createdUser.phone}: ${code}`);
 
+        return { success: true, userId: createdUser.id };
+
     } catch (err) {
-        console.log('Error [CREATE_USER]', err);
+        console.error('Error [CREATE_USER]', err);
         throw err;
     }
 }

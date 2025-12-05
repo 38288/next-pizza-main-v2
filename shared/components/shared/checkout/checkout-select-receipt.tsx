@@ -116,7 +116,7 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
 
     return (
         <WhiteBlock
-            title="1. Выбор оплаты и доставки"
+            title="2. Выбор оплаты и доставки"
             className={className}
             padding="md"
         >
@@ -133,7 +133,7 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                         <div>
                             <p className="text-sm text-gray-400 mb-1">Выбранный филиал:</p>
                             <p className="text-xl font-bold text-white mt-1">
-                                {currentOrganization.name} {currentOrganization.code && `(код: ${currentOrganization.code})`}
+                                {currentOrganization.name}
                             </p>
                         </div>
                         {!isDeliveryAvailable && (
@@ -165,7 +165,7 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                     <FormInput
                         name="firstName"
-                        label="Имя *"
+                        label="Имя "
                         required
                         placeholder="Введите ваше имя"
                         className="w-full"
@@ -173,6 +173,9 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
 
                     <div className="sm:col-span-2">
                         <div className="relative">
+                            <label className="block text-sm font-medium text-white mb-2">
+                                Телефон *
+                            </label>
                             <input
                                 {...register('phone', {
                                     required: 'Телефон обязателен',
@@ -192,16 +195,12 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                                         : "border-gray-600"
                                 )}
                             />
-                            <label className="block text-sm font-medium text-white mb-2">
-                                Телефон *
-                            </label>
+
                             {errors.phone?.message && (
                                 <p className="mt-1 text-sm text-red-400">{errors.phone.message as string}</p>
                             )}
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">
-                            Формат: +7 (XXX) XXX-XX-XX
-                        </p>
+
                     </div>
                 </div>
             </div>
@@ -367,11 +366,13 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={() => setPaymentMethod('online')}
+                        disabled // Делаем кнопку неактивной
                         className={cn(
                             'p-4 border-2 rounded-lg text-left transition-all duration-200',
                             paymentMethod === 'online'
                                 ? 'border-orange-500 bg-orange-500/10 shadow-lg'
-                                : 'border-gray-600 hover:border-orange-400 bg-gray-800 hover:bg-gray-750'
+                                : 'border-gray-600 hover:border-orange-400 bg-gray-800 hover:bg-gray-750',
+                            'opacity-50 cursor-not-allowed' // Добавляем стили для неактивного состояния
                         )}
                     >
                         <div className="flex items-center gap-3 mb-2">
@@ -380,12 +381,18 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                                 paymentMethod === 'online' ? 'text-orange-500' : 'text-gray-400'
                             )} />
                             <span className="font-semibold text-white">Онлайн картой</span>
+                            <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">
+                                Скоро
+                            </span>
                         </div>
                         <p className="text-sm text-gray-400">
                             Оплата картой онлайн через платёжную систему
                         </p>
                         <p className="text-xs text-blue-400 mt-2 font-medium">
                             ✓ Безопасная оплата банковской картой
+                        </p>
+                        <p className="text-xs text-yellow-500 mt-1">
+                            ⏳ Временно недоступна. Скоро будет!
                         </p>
                     </button>
                 </div>
@@ -404,8 +411,8 @@ export const CheckoutSelectReceipt: React.FC<Props> = ({
                 <div className="mt-2">
                     <textarea
                         {...register('comment')}
-                        rows={3}
-                        placeholder="Например: позвонить за час до доставки, оставить у двери, дополнительные пожелания по заказу..."
+                        rows={2}
+                        placeholder=""
                         className={cn(
                             "w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors resize-none bg-gray-700 text-white placeholder:text-gray-500",
                             errors.comment?.message

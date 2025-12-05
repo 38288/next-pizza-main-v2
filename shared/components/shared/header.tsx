@@ -98,7 +98,24 @@ export const Header: React.FC<Props> = ({
             router.push(`/?${params.toString()}`);
             router.refresh();
 
-            toast.success('Филиал успешно выбран!');
+            toast.success(
+                <div className="text-center">
+                    <div className="font-bold text-lg mb-1">Филиал выбран!</div>
+                </div>,
+                {
+                    duration: 6000,
+                    position: 'bottom-center',
+                    style: {
+                        background: 'black',
+                        color: '#ffffff',
+                        borderRadius: '12px',
+                        padding: '20px 24px',
+                        maxWidth: '450px',
+                        border: '1px solid #f97316',
+                        boxShadow: '0 10px 25px -5px rgba(234, 88, 12, 0.3)',
+                    },
+                }
+            );
 
         } catch (error) {
             console.error('Failed to save city:', error);

@@ -5,12 +5,9 @@ import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
 
 export default async function ProductPage({ params: { id } }: { params: { id: string } }) {
-    console.log('2');
-    // Получаем текущий город из cookies
     const cookieStore = await cookies();
     const currentCity = cookieStore.get('selectedCity')?.value || '';
 
-    // Получаем стоп-лист для текущего города
     let excludedSkus: string[] = [];
 
     if (currentCity) {
@@ -30,7 +27,6 @@ export default async function ProductPage({ params: { id } }: { params: { id: st
         ));
     }
 
-    // Сначала проверяем, не исключен ли сам продукт
     const productExists = await prisma.product.findFirst({
         where: {
             id: Number(id),
@@ -91,15 +87,13 @@ export default async function ProductPage({ params: { id } }: { params: { id: st
             }))
     };
 
-    // Создаем отфильтрованный продукт
     const product = {
         ...rawProduct,
         ingredients: filteredIngredients,
         items: filteredItems,
         category: filteredCategory
     };
-    //console.log(product);
-    // Проверяем, есть ли у товара варианты после фильтрации
+
     if (product.items.length === 0) {
         return (
             <Container className="my-6 sm:my-8 lg:my-10">
